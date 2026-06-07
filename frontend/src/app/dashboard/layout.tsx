@@ -1,10 +1,12 @@
 "use client";
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
+import Link from "next/link";
 import { useAuthStore } from "@/store/auth";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const { user, loading, fetchMe, logout } = useAuthStore();
 
   useEffect(() => {
@@ -14,26 +16,33 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, []);
 
   if (loading) return (
-    <div className="flex h-full items-center justify-center">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+    <div className="flex h-screen items-center justify-center bg-slate-50">
+      <div className="animate-spin rounded-full h-10 w-10 border-4 border-blue-600 border-t-transparent" />
     </div>
   );
 
   return (
-    <div className="min-h-full flex flex-col">
-      <header className="bg-white border-b px-6 py-4 flex items-center justify-between">
-        <span className="font-bold text-lg text-blue-600">Cari Takip</span>
-        <div className="flex items-center gap-4">
-          <span className="text-sm text-gray-500">{user?.fullName}</span>
-          <button
-            onClick={logout}
-            className="text-sm text-red-500 hover:text-red-700 font-medium"
-          >
-            Çıkış
-          </button>
+    <div className="min-h-screen bg-slate-50">
+      <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
+        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+          <Link href="/dashboard" className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold text-sm">CT</span>
+            </div>
+            <span className="font-bold text-slate-800 text-lg">Cari Takip</span>
+          </Link>
+          <div className="flex items-center gap-4">
+            <span className="text-sm text-slate-500 hidden sm:block">{user?.email}</span>
+            <button
+              onClick={logout}
+              className="text-sm font-medium text-slate-600 hover:text-red-600 transition-colors border border-slate-200 rounded-lg px-3 py-1.5 hover:border-red-200"
+            >
+              Çıkış
+            </button>
+          </div>
         </div>
       </header>
-      <main className="flex-1 p-6 max-w-5xl mx-auto w-full">{children}</main>
+      <main className="max-w-6xl mx-auto px-6 py-8">{children}</main>
     </div>
   );
 }

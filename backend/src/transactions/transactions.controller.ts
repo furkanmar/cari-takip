@@ -13,6 +13,7 @@ import {
   UploadedFile,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 import { TransactionsService } from './transactions.service';
 import { FilesService } from '../files/files.service';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
@@ -28,7 +29,7 @@ export class TransactionsController {
   ) {}
 
   @Post()
-  @UseInterceptors(FileInterceptor('invoice'))
+  @UseInterceptors(FileInterceptor('invoice', { storage: memoryStorage() }))
   async create(
     @Request() req,
     @Body() dto: CreateTransactionDto,
@@ -66,7 +67,7 @@ export class TransactionsController {
   }
 
   @Post(':id/invoice')
-  @UseInterceptors(FileInterceptor('invoice'))
+  @UseInterceptors(FileInterceptor('invoice', { storage: memoryStorage() }))
   async uploadInvoice(
     @Request() req,
     @Param('id') id: string,
