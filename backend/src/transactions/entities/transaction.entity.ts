@@ -39,6 +39,9 @@ export class Transaction {
   @Column({ type: 'date' })
   date: string; // işlem tarihi (geçmişe eklenebilir)
 
+  @Column({ type: 'date', nullable: true })
+  dueDate: string | null; // vade tarihi
+
   @Column()
   description: string;
 

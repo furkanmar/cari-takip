@@ -173,6 +173,15 @@ class _CompanyTile extends StatelessWidget {
   final VoidCallback onRefresh;
   const _CompanyTile({required this.company, required this.onRefresh});
 
+  void _showEditSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => AddCompanySheet(existing: company),
+    ).then((updated) { if (updated == true) onRefresh(); });
+  }
+
   @override
   Widget build(BuildContext context) {
     final net = company.netBalance;
@@ -187,6 +196,7 @@ class _CompanyTile extends StatelessWidget {
             await Navigator.push(context, MaterialPageRoute(builder: (_) => CompanyDetailScreen(companyId: company.id)));
             onRefresh();
           },
+          onLongPress: () => _showEditSheet(context),
           child: Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xFFE2E8F0))),

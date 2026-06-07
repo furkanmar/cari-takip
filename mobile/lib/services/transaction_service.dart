@@ -11,6 +11,7 @@ class TransactionService {
   Future<Transaction> create({
     required String companyId,
     required String date,
+    String? dueDate,
     required String description,
     required TransactionType type,
     required double amount,
@@ -20,6 +21,7 @@ class TransactionService {
     final formData = FormData.fromMap({
       'companyId': companyId,
       'date': date,
+      if (dueDate != null && dueDate.isNotEmpty) 'dueDate': dueDate,
       'description': description,
       'type': type == TransactionType.receivable ? 'receivable' : 'payable',
       'amount': amount.toString(),
@@ -38,12 +40,14 @@ class TransactionService {
   Future<Transaction> update({
     required String id,
     required String date,
+    String? dueDate,
     required String description,
     required TransactionType type,
     required double amount,
   }) async {
     final res = await apiClient.put('/transactions/$id', data: {
       'date': date,
+      if (dueDate != null && dueDate.isNotEmpty) 'dueDate': dueDate,
       'description': description,
       'type': type == TransactionType.receivable ? 'receivable' : 'payable',
       'amount': amount,

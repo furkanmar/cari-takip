@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import '../models/company.dart';
 import '../services/company_service.dart';
 
 class AddCompanySheet extends StatefulWidget {
-  const AddCompanySheet({super.key});
+  final Company? existing;
+  const AddCompanySheet({super.key, this.existing});
 
   @override
   State<AddCompanySheet> createState() => _AddCompanySheetState();
@@ -10,25 +12,59 @@ class AddCompanySheet extends StatefulWidget {
 
 class _AddCompanySheetState extends State<AddCompanySheet> {
   final _formKey = GlobalKey<FormState>();
-  final _nameCtrl = TextEditingController();
-  final _taxCtrl = TextEditingController();
-  final _phoneCtrl = TextEditingController();
-  final _emailCtrl = TextEditingController();
-  final _addressCtrl = TextEditingController();
+  late final TextEditingController _nameCtrl;
+  late final TextEditingController _taxCtrl;
+  late final TextEditingController _phoneCtrl;
+  late final TextEditingController _emailCtrl;
+  late final TextEditingController _addressCtrl;
   bool _loading = false;
   String? _error;
+
+  bool get _isEdit => widget.existing != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final e = widget.existing;
+    _nameCtrl = TextEditingController(text: e?.name ?? '');
+    _taxCtrl = TextEditingController(text: e?.taxNumber ?? '');
+    _phoneCtrl = TextEditingController(text: e?.phone ?? '');
+    _emailCtrl = TextEditingController(text: e?.email ?? '');
+    _addressCtrl = TextEditingController(text: e?.address ?? '');
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _taxCtrl.dispose();
+    _phoneCtrl.dispose();
+    _emailCtrl.dispose();
+    _addressCtrl.dispose();
+    super.dispose();
+  }
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() { _loading = true; _error = null; });
     try {
-      await CompanyService().create(
-        name: _nameCtrl.text,
-        taxNumber: _taxCtrl.text,
-        phone: _phoneCtrl.text,
-        email: _emailCtrl.text,
-        address: _addressCtrl.text,
-      );
+      if (_isEdit) {
+        await CompanyService().update(
+          id: widget.existing!.id,
+          name: _nameCtrl.text,
+          taxNumber: _taxCtrl.text,
+          phone: _phoneCtrl.text,
+          email: _emailCtrl.text,
+          address: _addressCtrl.text,
+        );
+      } else {
+        await CompanyService().create(
+          name: _nameCtrl.text,
+          taxNumber: _taxCtrl.text,
+          phone: _phoneCtrl.text,
+          email: _emailCtrl.text,
+          address: _addressCtrl.text,
+        );
+      }
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
       setState(() => _error = 'Hata oluştu. Tekrar deneyin.');
@@ -50,7 +86,8 @@ class _AddCompanySheetState extends State<AddCompanySheet> {
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: const Color(0xFFE2E8F0), borderRadius: BorderRadius.circular(2)))),
           const SizedBox(height: 20),
-          const Text('Şirket Ekle', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFF0F172A))),
+          Text(_isEdit ? 'Şirketi Düzenle' : 'Şirket Ekle',
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFF0F172A))),
           const SizedBox(height: 16),
           if (_error != null) ...[
             Container(
@@ -77,7 +114,7 @@ class _AddCompanySheetState extends State<AddCompanySheet> {
             onPressed: _loading ? null : _submit,
             child: _loading
                 ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                : const Text('Kaydet'),
+                : Text(_isEdit ? 'Güncelle' : 'Kaydet'),
           ),
         ]),
       ),

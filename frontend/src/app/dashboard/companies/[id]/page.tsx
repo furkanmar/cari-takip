@@ -6,6 +6,7 @@ import api from "@/lib/api";
 interface Transaction {
   id: string;
   date: string;
+  dueDate: string | null;
   description: string;
   type: "receivable" | "payable";
   amount: string;
@@ -24,12 +25,20 @@ interface Company {
 const fmt = (n: number) =>
   new Intl.NumberFormat("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
 
+const today = () => new Date().toISOString().split("T")[0];
+
 const emptyForm = () => ({
-  date: new Date().toISOString().split("T")[0],
+  date: today(),
+  dueDate: "",
   description: "",
   type: "receivable" as "receivable" | "payable",
   amount: "",
 });
+
+const isOverdue = (dueDate: string | null) => {
+  if (!dueDate) return false;
+  return dueDate < today();
+};
 
 export default function CompanyPage() {
   const { id } = useParams<{ id: string }>();
@@ -66,7 +75,7 @@ export default function CompanyPage() {
 
   const openEdit = (t: Transaction) => {
     setEditingId(t.id);
-    setForm({ date: t.date, description: t.description, type: t.type, amount: t.amount });
+    setForm({ date: t.date, dueDate: t.dueDate || "", description: t.description, type: t.type, amount: t.amount });
     setInvoice(null);
     setError("");
     setShowForm(true);
@@ -79,13 +88,9 @@ export default function CompanyPage() {
     setError("");
     setSaving(true);
     try {
+      const payload = { ...form, dueDate: form.dueDate || undefined };
       if (editingId) {
-        await api.put(`/transactions/${editingId}`, {
-          date: form.date,
-          description: form.description,
-          type: form.type,
-          amount: parseFloat(form.amount),
-        });
+        await api.put(`/transactions/${editingId}`, { ...payload, amount: parseFloat(form.amount) });
       } else {
         const formData = new FormData();
         formData.append("companyId", id);
@@ -93,10 +98,9 @@ export default function CompanyPage() {
         formData.append("description", form.description);
         formData.append("type", form.type);
         formData.append("amount", form.amount);
+        if (form.dueDate) formData.append("dueDate", form.dueDate);
         if (invoice) formData.append("invoice", invoice);
-        await api.post("/transactions", formData, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
+        await api.post("/transactions", formData, { headers: { "Content-Type": "multipart/form-data" } });
       }
       closeForm();
       fetchData();
@@ -126,7 +130,6 @@ export default function CompanyPage() {
 
   return (
     <div className="space-y-6">
-      {/* Başlık */}
       <div className="flex items-center gap-4">
         <button onClick={() => router.back()}
           className="w-9 h-9 flex items-center justify-center rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-100 transition-colors text-lg">
@@ -138,17 +141,14 @@ export default function CompanyPage() {
         </div>
       </div>
 
-      {/* Bakiye kartları */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
           <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Alacak</p>
           <p className="text-2xl font-bold text-emerald-600">₺{fmt(receivable)}</p>
-          <p className="text-xs text-slate-400 mt-1">Bu şirketten alacak</p>
         </div>
         <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
           <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Verecek</p>
           <p className="text-2xl font-bold text-red-500">₺{fmt(payable)}</p>
-          <p className="text-xs text-slate-400 mt-1">Bu şirkete verecek</p>
         </div>
         <div className={`rounded-2xl p-6 border shadow-sm ${net >= 0 ? "bg-blue-600 border-blue-700" : "bg-red-600 border-red-700"}`}>
           <p className="text-xs font-semibold text-white/70 uppercase tracking-wider mb-3">Net Bakiye</p>
@@ -157,7 +157,6 @@ export default function CompanyPage() {
         </div>
       </div>
 
-      {/* İşlemler tablosu */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
           <h2 className="font-bold text-slate-800 text-lg">İşlem Geçmişi</h2>
@@ -179,18 +178,18 @@ export default function CompanyPage() {
                   className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
               <div>
+                <label className="text-xs font-semibold text-slate-500 block mb-1.5">Vade Tarihi <span className="font-normal">(opsiyonel)</span></label>
+                <input type="date" value={form.dueDate}
+                  onChange={e => setForm({ ...form, dueDate: e.target.value })}
+                  className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div>
                 <label className="text-xs font-semibold text-slate-500 block mb-1.5">İşlem Türü</label>
                 <select value={form.type} onChange={e => setForm({ ...form, type: e.target.value as any })}
                   className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  <option value="receivable">📈 Alacak — bize borçlu</option>
-                  <option value="payable">📉 Verecek — biz borçluyuz</option>
+                  <option value="receivable">📈 Alacak</option>
+                  <option value="payable">📉 Verecek</option>
                 </select>
-              </div>
-              <div className="sm:col-span-2">
-                <label className="text-xs font-semibold text-slate-500 block mb-1.5">Açıklama</label>
-                <input required placeholder="İşlem açıklaması..." value={form.description}
-                  onChange={e => setForm({ ...form, description: e.target.value })}
-                  className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
               <div>
                 <label className="text-xs font-semibold text-slate-500 block mb-1.5">Tutar (₺)</label>
@@ -198,8 +197,14 @@ export default function CompanyPage() {
                   onChange={e => setForm({ ...form, amount: e.target.value })}
                   className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
+              <div className="sm:col-span-2">
+                <label className="text-xs font-semibold text-slate-500 block mb-1.5">Açıklama</label>
+                <input required placeholder="İşlem açıklaması..." value={form.description}
+                  onChange={e => setForm({ ...form, description: e.target.value })}
+                  className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
               {!editingId && (
-                <div>
+                <div className="sm:col-span-2">
                   <label className="text-xs font-semibold text-slate-500 block mb-1.5">Fatura (opsiyonel)</label>
                   <input type="file" accept=".pdf,.jpg,.jpeg,.png"
                     onChange={e => setInvoice(e.target.files?.[0] || null)}
@@ -229,6 +234,7 @@ export default function CompanyPage() {
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-100">
                   <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Tarih</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Vade</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Açıklama</th>
                   <th className="px-6 py-3 text-right text-xs font-semibold text-slate-400 uppercase tracking-wider">Alacak</th>
                   <th className="px-6 py-3 text-right text-xs font-semibold text-slate-400 uppercase tracking-wider">Verecek</th>
@@ -241,9 +247,17 @@ export default function CompanyPage() {
                 {transactions.map((t) => {
                   const balance = parseFloat(t.runningBalance);
                   const amount = parseFloat(t.amount);
+                  const overdue = isOverdue(t.dueDate);
                   return (
-                    <tr key={t.id} className="hover:bg-slate-50 transition-colors">
+                    <tr key={t.id} className={`hover:bg-slate-50 transition-colors ${overdue ? "bg-red-50/40" : ""}`}>
                       <td className="px-6 py-4 text-sm text-slate-500 whitespace-nowrap font-medium">{t.date}</td>
+                      <td className="px-6 py-4 text-sm whitespace-nowrap">
+                        {t.dueDate ? (
+                          <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-lg ${overdue ? "bg-red-100 text-red-600" : "bg-slate-100 text-slate-500"}`}>
+                            {overdue ? "⚠️ " : ""}{t.dueDate}
+                          </span>
+                        ) : <span className="text-slate-300 text-xs">—</span>}
+                      </td>
                       <td className="px-6 py-4 text-sm text-slate-700">{t.description}</td>
                       <td className="px-6 py-4 text-right text-sm font-semibold text-emerald-600">
                         {t.type === "receivable" ? `+₺${fmt(amount)}` : ""}
@@ -259,20 +273,14 @@ export default function CompanyPage() {
                           <span className="inline-flex items-center gap-1 text-xs text-blue-600 bg-blue-50 rounded-lg px-2 py-1">
                             📎 {t.invoiceFileName}
                           </span>
-                        ) : (
-                          <span className="text-slate-300 text-xs">—</span>
-                        )}
+                        ) : <span className="text-slate-300 text-xs">—</span>}
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end gap-3">
                           <button onClick={() => openEdit(t)}
-                            className="text-xs text-slate-400 hover:text-blue-500 transition-colors font-medium">
-                            Düzenle
-                          </button>
+                            className="text-xs text-slate-400 hover:text-blue-500 transition-colors font-medium">Düzenle</button>
                           <button onClick={() => handleDelete(t.id)}
-                            className="text-xs text-slate-300 hover:text-red-500 transition-colors font-medium">
-                            Sil
-                          </button>
+                            className="text-xs text-slate-300 hover:text-red-500 transition-colors font-medium">Sil</button>
                         </div>
                       </td>
                     </tr>

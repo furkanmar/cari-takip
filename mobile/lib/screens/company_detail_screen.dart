@@ -227,6 +227,16 @@ class _TransactionTile extends StatelessWidget {
               const SizedBox(height: 2),
               Row(children: [
                 Text(transaction.date, style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 12)),
+                if (transaction.dueDate != null) ...[
+                  const Text(' · ', style: TextStyle(color: Color(0xFF94A3B8))),
+                  Icon(Icons.schedule_rounded, size: 11,
+                    color: transaction.isOverdue ? const Color(0xFFDC2626) : const Color(0xFF94A3B8)),
+                  const SizedBox(width: 2),
+                  Text(transaction.dueDate!,
+                    style: TextStyle(fontSize: 11,
+                      color: transaction.isOverdue ? const Color(0xFFDC2626) : const Color(0xFF94A3B8),
+                      fontWeight: transaction.isOverdue ? FontWeight.w600 : FontWeight.normal)),
+                ],
                 if (transaction.invoiceFileName != null) ...[
                   const Text(' · ', style: TextStyle(color: Color(0xFF94A3B8))),
                   const Icon(Icons.attach_file_rounded, size: 12, color: Color(0xFF2563EB)),

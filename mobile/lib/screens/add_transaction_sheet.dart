@@ -5,7 +5,7 @@ import '../services/transaction_service.dart';
 
 class AddTransactionSheet extends StatefulWidget {
   final String companyId;
-  final Transaction? existing; // edit modu için
+  final Transaction? existing;
 
   const AddTransactionSheet({super.key, required this.companyId, this.existing});
 
@@ -18,6 +18,7 @@ class _AddTransactionSheetState extends State<AddTransactionSheet> {
   late final TextEditingController _descCtrl;
   late final TextEditingController _amountCtrl;
   late DateTime _date;
+  DateTime? _dueDate;
   late TransactionType _type;
   PlatformFile? _invoice;
   bool _loading = false;
@@ -32,6 +33,7 @@ class _AddTransactionSheetState extends State<AddTransactionSheet> {
     _descCtrl = TextEditingController(text: e?.description ?? '');
     _amountCtrl = TextEditingController(text: e != null ? e.amount.toStringAsFixed(2) : '');
     _date = e != null ? DateTime.tryParse(e.date) ?? DateTime.now() : DateTime.now();
+    _dueDate = e?.dueDate != null ? DateTime.tryParse(e!.dueDate!) : null;
     _type = e?.type ?? TransactionType.receivable;
   }
 
@@ -41,6 +43,11 @@ class _AddTransactionSheetState extends State<AddTransactionSheet> {
     _amountCtrl.dispose();
     super.dispose();
   }
+
+  String _formatDate(DateTime d) =>
+      '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year}';
+
+  String _toIso(DateTime d) => d.toIso8601String().split('T')[0];
 
   Future<void> _pickFile() async {
     final result = await FilePicker.platform.pickFiles(
@@ -54,13 +61,14 @@ class _AddTransactionSheetState extends State<AddTransactionSheet> {
     if (!_formKey.currentState!.validate()) return;
     setState(() { _loading = true; _error = null; });
     try {
-      final dateStr = _date.toIso8601String().split('T')[0];
       final amount = double.parse(_amountCtrl.text.replaceAll(',', '.'));
+      final dueDateStr = _dueDate != null ? _toIso(_dueDate!) : null;
 
       if (_isEdit) {
         await TransactionService().update(
           id: widget.existing!.id,
-          date: dateStr,
+          date: _toIso(_date),
+          dueDate: dueDateStr,
           description: _descCtrl.text,
           type: _type,
           amount: amount,
@@ -68,7 +76,8 @@ class _AddTransactionSheetState extends State<AddTransactionSheet> {
       } else {
         await TransactionService().create(
           companyId: widget.companyId,
-          date: dateStr,
+          date: _toIso(_date),
+          dueDate: dueDateStr,
           description: _descCtrl.text,
           type: _type,
           amount: amount,
@@ -82,6 +91,56 @@ class _AddTransactionSheetState extends State<AddTransactionSheet> {
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  Widget _datePicker({
+    required String label,
+    required DateTime? value,
+    required bool required,
+    required Function(DateTime?) onPicked,
+  }) {
+    return GestureDetector(
+      onTap: () async {
+        final d = await showDatePicker(
+          context: context,
+          initialDate: value ?? DateTime.now(),
+          firstDate: DateTime(2000),
+          lastDate: DateTime.now().add(const Duration(days: 3650)),
+        );
+        onPicked(d);
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFCBD5E1)),
+        ),
+        child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(label, style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8), fontWeight: FontWeight.w600)),
+            const SizedBox(height: 2),
+            Text(
+              value != null ? _formatDate(value) : required ? 'Seçin' : 'Opsiyonel',
+              style: TextStyle(
+                fontSize: 14,
+                color: value != null ? const Color(0xFF0F172A) : const Color(0xFF94A3B8),
+              ),
+            ),
+          ]),
+          Row(children: [
+            const Icon(Icons.calendar_today_rounded, size: 16, color: Color(0xFF64748B)),
+            if (!required && value != null) ...[
+              const SizedBox(width: 8),
+              GestureDetector(
+                onTap: () { onPicked(null); },
+                child: const Icon(Icons.close_rounded, size: 16, color: Color(0xFF94A3B8)),
+              ),
+            ],
+          ]),
+        ]),
+      ),
+    );
   }
 
   @override
@@ -142,31 +201,21 @@ class _AddTransactionSheetState extends State<AddTransactionSheet> {
               ]),
             ),
             const SizedBox(height: 12),
-            // Tarih
-            GestureDetector(
-              onTap: () async {
-                final d = await showDatePicker(
-                  context: context,
-                  initialDate: _date,
-                  firstDate: DateTime(2000),
-                  lastDate: DateTime.now().add(const Duration(days: 365)),
-                );
-                if (d != null) setState(() => _date = d);
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFCBD5E1)),
-                ),
-                child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                  Text('${_date.day.toString().padLeft(2, '0')}.${_date.month.toString().padLeft(2, '0')}.${_date.year}',
-                    style: const TextStyle(fontSize: 15, color: Color(0xFF0F172A))),
-                  const Icon(Icons.calendar_today_rounded, size: 18, color: Color(0xFF64748B)),
-                ]),
-              ),
-            ),
+            Row(children: [
+              Expanded(child: _datePicker(
+                label: 'Tarih',
+                value: _date,
+                required: true,
+                onPicked: (d) { if (d != null) setState(() => _date = d); },
+              )),
+              const SizedBox(width: 10),
+              Expanded(child: _datePicker(
+                label: 'Vade',
+                value: _dueDate,
+                required: false,
+                onPicked: (d) => setState(() => _dueDate = d),
+              )),
+            ]),
             const SizedBox(height: 12),
             TextFormField(
               controller: _descCtrl,

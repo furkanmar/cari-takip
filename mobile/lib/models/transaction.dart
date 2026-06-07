@@ -4,6 +4,7 @@ class Transaction {
   final String id;
   final String companyId;
   final String date;
+  final String? dueDate;
   final String description;
   final TransactionType type;
   final double amount;
@@ -15,6 +16,7 @@ class Transaction {
     required this.id,
     required this.companyId,
     required this.date,
+    this.dueDate,
     required this.description,
     required this.type,
     required this.amount,
@@ -23,10 +25,16 @@ class Transaction {
     this.invoiceFileName,
   });
 
+  bool get isOverdue {
+    if (dueDate == null) return false;
+    return dueDate! < DateTime.now().toIso8601String().split('T')[0];
+  }
+
   factory Transaction.fromJson(Map<String, dynamic> json) => Transaction(
         id: json['id'],
         companyId: json['companyId'],
         date: json['date'],
+        dueDate: json['dueDate'],
         description: json['description'],
         type: json['type'] == 'receivable'
             ? TransactionType.receivable
