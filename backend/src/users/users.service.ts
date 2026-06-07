@@ -24,11 +24,12 @@ export class UsersService {
   }
 
   async updateRefreshToken(userId: string, token: string | null) {
-    await this.usersRepository.update(userId, { refreshToken: token });
+    await this.usersRepository.update(userId, { refreshToken: token as string });
   }
 
   async getProfile(userId: string) {
     const user = await this.findById(userId);
+    if (!user) return null;
     const { password, refreshToken, ...profile } = user;
     return profile;
   }

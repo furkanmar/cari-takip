@@ -11,13 +11,13 @@ export class FilesService implements OnModuleInit {
 
   constructor(private configService: ConfigService) {
     this.minioClient = new Minio.Client({
-      endPoint: configService.get('MINIO_ENDPOINT'),
-      port: +configService.get('MINIO_PORT'),
+      endPoint: configService.get('MINIO_ENDPOINT', 'localhost'),
+      port: +configService.get('MINIO_PORT', '9000'),
       useSSL: configService.get('MINIO_USE_SSL') === 'true',
-      accessKey: configService.get('MINIO_ACCESS_KEY'),
-      secretKey: configService.get('MINIO_SECRET_KEY'),
+      accessKey: configService.get('MINIO_ACCESS_KEY', ''),
+      secretKey: configService.get('MINIO_SECRET_KEY', ''),
     });
-    this.bucket = configService.get('MINIO_BUCKET');
+    this.bucket = configService.get('MINIO_BUCKET', 'invoices');
   }
 
   async onModuleInit() {

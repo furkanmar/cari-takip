@@ -22,8 +22,8 @@ export class User {
   @Column()
   fullName: string;
 
-  @Column({ nullable: true })
-  refreshToken: string;
+  @Column({ nullable: true, type: 'text' })
+  refreshToken: string | null;
 
   @CreateDateColumn()
   createdAt: Date;

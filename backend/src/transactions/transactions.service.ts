@@ -35,7 +35,7 @@ export class TransactionsService {
     // Şirket toplam bakiyelerini güncelle
     await this.companiesService.updateBalances(dto.companyId, userId);
 
-    return this.transactionsRepository.findOne({ where: { id: transaction.id } });
+    return this.transactionsRepository.findOne({ where: { id: transaction.id } }) as Promise<Transaction>;
   }
 
   async findAll(
@@ -94,7 +94,7 @@ export class TransactionsService {
     invoiceFileName: string,
   ): Promise<Transaction> {
     await this.transactionsRepository.update(id, { invoiceUrl, invoiceFileName });
-    return this.transactionsRepository.findOne({ where: { id } });
+    return this.transactionsRepository.findOne({ where: { id } }) as Promise<Transaction>;
   }
 
   // Belirtilen tarihten itibaren tüm işlemlerin running balance'ını yeniden hesaplar
