@@ -1,7 +1,6 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { useAuthStore } from "@/store/auth";
 
 export default function LoginPage() {
@@ -71,12 +70,6 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className="text-center text-sm text-slate-500 mt-5">
-          Hesabınız yok mu?{" "}
-          <Link href="/register" className="text-blue-600 font-semibold hover:underline">
-            Kayıt Ol
-          </Link>
-        </p>
       </div>
     </div>
   );
