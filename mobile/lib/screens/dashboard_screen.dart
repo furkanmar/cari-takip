@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../models/company.dart';
 import '../services/company_service.dart';
-import '../providers/auth_provider.dart';
 import '../core/formatters.dart';
-import 'login_screen.dart';
 import 'company_detail_screen.dart';
 import 'add_company_sheet.dart';
+import 'settings_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -53,11 +51,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ]),
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout_rounded, color: Color(0xFF64748B)),
-            onPressed: () async {
-              await context.read<AuthProvider>().logout();
-              if (mounted) Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const LoginScreen()), (_) => false);
-            },
+            icon: const Icon(Icons.settings_rounded, color: Color(0xFF64748B)),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen())),
           ),
         ],
       ),

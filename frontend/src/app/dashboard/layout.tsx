@@ -31,8 +31,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
             <span className="font-bold text-slate-800 text-lg">Cari Takip</span>
           </Link>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-slate-500 hidden sm:block">{user?.email}</span>
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-slate-500 hidden sm:block">{user?.fullName || user?.email}</span>
+            <Link href="/dashboard/settings"
+              className="text-sm font-medium text-slate-600 hover:text-blue-600 transition-colors border border-slate-200 rounded-lg px-3 py-1.5 hover:border-blue-200">
+              ⚙️ Ayarlar
+            </Link>
             <button
               onClick={logout}
               className="text-sm font-medium text-slate-600 hover:text-red-600 transition-colors border border-slate-200 rounded-lg px-3 py-1.5 hover:border-red-200"
