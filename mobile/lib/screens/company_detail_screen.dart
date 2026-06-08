@@ -140,9 +140,9 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
       padding: const EdgeInsets.all(16),
       child: Column(children: [
         Row(children: [
-          Expanded(child: _Card(title: 'Alacak', value: formatMoney(_company!.totalReceivable), color: const Color(0xFF059669))),
+          Expanded(child: _Card(title: 'Alınan', value: formatMoney(_company!.totalReceivable), color: const Color(0xFF059669))),
           const SizedBox(width: 12),
-          Expanded(child: _Card(title: 'Verecek', value: formatMoney(_company!.totalPayable), color: const Color(0xFFDC2626))),
+          Expanded(child: _Card(title: 'Verilen', value: formatMoney(_company!.totalPayable), color: const Color(0xFFDC2626))),
         ]),
         const SizedBox(height: 12),
         Container(

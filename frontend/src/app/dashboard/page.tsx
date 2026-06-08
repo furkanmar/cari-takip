@@ -88,11 +88,11 @@ export default function DashboardPage() {
       {/* Özet kartlar */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Toplam Alacak</p>
+          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Toplam Alınan</p>
           <p className="text-3xl font-bold text-emerald-600">₺{fmt(totalReceivable)}</p>
         </div>
         <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Toplam Verecek</p>
+          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Toplam Verilen</p>
           <p className="text-3xl font-bold text-red-500">₺{fmt(totalPayable)}</p>
         </div>
         <div className={`rounded-2xl p-6 border shadow-sm ${netBalance >= 0 ? "bg-blue-600 border-blue-700" : "bg-red-600 border-red-700"}`}>
@@ -178,7 +178,7 @@ export default function DashboardPage() {
                         {net >= 0 ? "+" : "-"}₺{fmt(Math.abs(net))}
                       </p>
                       <p className="text-xs text-slate-400">
-                        A: ₺{fmt(receivable)} · V: ₺{fmt(payable)}
+                        Al: ₺{fmt(receivable)} · Ver: ₺{fmt(payable)}
                       </p>
                     </div>
                     <button onClick={(e) => openEdit(e, c)}

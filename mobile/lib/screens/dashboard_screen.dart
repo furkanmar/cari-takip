@@ -119,9 +119,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       padding: const EdgeInsets.all(16),
       child: Column(children: [
         Row(children: [
-          Expanded(child: _SummaryCard(title: 'Alacak', amount: _totalReceivable, color: const Color(0xFF059669))),
+          Expanded(child: _SummaryCard(title: 'Alınan', amount: _totalReceivable, color: const Color(0xFF059669))),
           const SizedBox(width: 12),
-          Expanded(child: _SummaryCard(title: 'Verecek', amount: _totalPayable, color: const Color(0xFFDC2626))),
+          Expanded(child: _SummaryCard(title: 'Verilen', amount: _totalPayable, color: const Color(0xFFDC2626))),
         ]),
         const SizedBox(height: 12),
         Container(

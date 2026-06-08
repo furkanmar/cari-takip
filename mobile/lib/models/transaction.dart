@@ -27,7 +27,7 @@ class Transaction {
 
   bool get isOverdue {
     if (dueDate == null) return false;
-    return dueDate! < DateTime.now().toIso8601String().split('T')[0];
+    return dueDate!.compareTo(DateTime.now().toIso8601String().split('T')[0]) < 0;
   }
 
   factory Transaction.fromJson(Map<String, dynamic> json) => Transaction(

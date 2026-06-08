@@ -33,6 +33,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </Link>
           <div className="flex items-center gap-3">
             <span className="text-sm text-slate-500 hidden sm:block">{user?.fullName || user?.email}</span>
+            <Link href="/dashboard/balance"
+              className={`text-sm font-medium transition-colors border rounded-lg px-3 py-1.5 ${pathname === "/dashboard/balance" ? "text-blue-600 border-blue-200 bg-blue-50" : "text-slate-600 hover:text-blue-600 border-slate-200 hover:border-blue-200"}`}>
+              💰 Bakiye
+            </Link>
             <Link href="/dashboard/settings"
               className="text-sm font-medium text-slate-600 hover:text-blue-600 transition-colors border border-slate-200 rounded-lg px-3 py-1.5 hover:border-blue-200">
               ⚙️ Ayarlar
