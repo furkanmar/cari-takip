@@ -14,6 +14,13 @@ interface BalanceEntry {
   invoiceFileName: string | null;
 }
 
+interface Company {
+  id: string;
+  name: string;
+  totalReceivable: string;
+  totalPayable: string;
+}
+
 const fmt = (n: number) =>
   new Intl.NumberFormat("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
 
@@ -34,6 +41,7 @@ const isOverdue = (dueDate: string | null) => {
 
 export default function BalancePage() {
   const [entries, setEntries] = useState<BalanceEntry[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -43,8 +51,12 @@ export default function BalancePage() {
   const [error, setError] = useState("");
 
   const fetchData = async () => {
-    const res = await api.get("/balance");
-    setEntries(res.data);
+    const [balRes, compRes] = await Promise.all([
+      api.get("/balance"),
+      api.get("/companies"),
+    ]);
+    setEntries(balRes.data);
+    setCompanies(compRes.data);
     setLoading(false);
   };
 
@@ -104,6 +116,15 @@ export default function BalancePage() {
   const totalPaid = entries.filter(e => e.type === "paid").reduce((s, e) => s + parseFloat(e.amount), 0);
   const net = totalReceived - totalPaid;
 
+  // Firmalara toplam ödenmemiş borç = Σ(alınan - verilen) tüm firmalar
+  const unpaidDebt = companies.reduce((s, c) => {
+    const debt = parseFloat(c.totalReceivable || "0") - parseFloat(c.totalPayable || "0");
+    return s + Math.max(0, debt);
+  }, 0);
+
+  // Gerçekleşmemiş bakiye = mevcut bakiye - ödenmemiş borçlar
+  const projectedBalance = net - unpaidDebt;
+
   if (loading) return (
     <div className="flex justify-center mt-32">
       <div className="animate-spin rounded-full h-10 w-10 border-4 border-blue-600 border-t-transparent" />
@@ -117,6 +138,7 @@ export default function BalancePage() {
         <p className="text-sm text-slate-400 mt-0.5">Nakit ve cüzdan hareketleri</p>
       </div>
 
+      {/* Üst satır: Bakiye + / Bakiye - / Mevcut Bakiye */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
           <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Toplam Bakiye +</p>
@@ -130,6 +152,22 @@ export default function BalancePage() {
           <p className="text-xs font-semibold text-white/70 uppercase tracking-wider mb-3">Mevcut Bakiye</p>
           <p className="text-2xl font-bold text-white">₺{fmt(Math.abs(net))}</p>
           <p className="text-xs text-white/70 mt-1">{net >= 0 ? "Kasada" : "Açık"}</p>
+        </div>
+      </div>
+
+      {/* Alt satır: Ödenmemiş Borçlar / Gerçekleşmemiş Bakiye */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
+          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Ödenmemiş Borçlar</p>
+          <p className="text-xs text-slate-400 mb-3">Firmalara kalan toplam borç</p>
+          <p className="text-2xl font-bold text-orange-500">₺{fmt(unpaidDebt)}</p>
+          <p className="text-xs text-slate-400 mt-2">{companies.filter(c => parseFloat(c.totalReceivable || "0") > parseFloat(c.totalPayable || "0")).length} firma</p>
+        </div>
+        <div className={`rounded-2xl p-6 border shadow-sm ${projectedBalance >= 0 ? "bg-emerald-600 border-emerald-700" : "bg-red-600 border-red-700"}`}>
+          <p className="text-xs font-semibold text-white/70 uppercase tracking-wider mb-1">Gerçekleşmemiş Bakiye</p>
+          <p className="text-xs text-white/60 mb-3">Tüm borçlar ödenseydi elimde kalacak</p>
+          <p className="text-2xl font-bold text-white">{projectedBalance >= 0 ? "" : "-"}₺{fmt(Math.abs(projectedBalance))}</p>
+          <p className="text-xs text-white/70 mt-2">{projectedBalance >= 0 ? "Pozitif — borçları karşılayabilirsin" : "Negatif — mevcut bakiye borçları karşılamıyor"}</p>
         </div>
       </div>
 
