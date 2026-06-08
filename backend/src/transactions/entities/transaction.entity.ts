@@ -63,7 +63,7 @@ export class Transaction {
   invoiceFileName: string;
 
   // verilen türündeyse otomatik oluşturulan bakiye kaydının ID'si
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true, default: null })
   linkedBalanceEntryId: string | null;
 
   @CreateDateColumn()
