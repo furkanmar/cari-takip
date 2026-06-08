@@ -43,10 +43,28 @@ export class BalanceService {
   }
 
   async remove(userId: string, id: string): Promise<void> {
-    const entry = await this.findOne(userId, id);
+    await this.findOne(userId, id); // sahiplik doğrula
+    await this.removeById(userId, id);
+  }
+
+  // TransactionsService'in dahili kullanımı için — userId doğrulaması zaten yapılmış
+  async removeById(userId: string, id: string): Promise<void> {
+    const entry = await this.balanceRepository.findOne({ where: { id, userId } });
+    if (!entry) return; // zaten silinmişse sessizce geç
     const { date } = entry;
     await this.balanceRepository.remove(entry);
     await this.recalculateRunningBalances(userId, date);
+  }
+
+  // TransactionsService'in dahili kullanımı için
+  async updateById(userId: string, id: string, dto: Partial<UpdateBalanceEntryDto>): Promise<void> {
+    const entry = await this.balanceRepository.findOne({ where: { id, userId } });
+    if (!entry) return;
+    const oldDate = entry.date;
+    Object.assign(entry, dto);
+    await this.balanceRepository.save(entry);
+    const recalcFrom = dto.date && dto.date < oldDate ? dto.date : oldDate;
+    await this.recalculateRunningBalances(userId, recalcFrom);
   }
 
   async attachInvoice(id: string, invoiceUrl: string, invoiceFileName: string): Promise<BalanceEntry> {

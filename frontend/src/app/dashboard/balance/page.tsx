@@ -119,11 +119,11 @@ export default function BalancePage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Toplam Alınan</p>
+          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Toplam Bakiye +</p>
           <p className="text-2xl font-bold text-emerald-600">₺{fmt(totalReceived)}</p>
         </div>
         <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Toplam Verilen</p>
+          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Toplam Bakiye -</p>
           <p className="text-2xl font-bold text-red-500">₺{fmt(totalPaid)}</p>
         </div>
         <div className={`rounded-2xl p-6 border shadow-sm ${net >= 0 ? "bg-blue-600 border-blue-700" : "bg-red-600 border-red-700"}`}>
@@ -163,8 +163,8 @@ export default function BalancePage() {
                 <label className="text-xs font-semibold text-slate-500 block mb-1.5">Tür</label>
                 <select value={form.type} onChange={e => setForm({ ...form, type: e.target.value as any })}
                   className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  <option value="received">📈 Alınan</option>
-                  <option value="paid">📉 Verilen</option>
+                  <option value="received">📈 Bakiye +</option>
+                  <option value="paid">📉 Bakiye -</option>
                 </select>
               </div>
               <div>
@@ -212,8 +212,8 @@ export default function BalancePage() {
                   <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Tarih</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Vade</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Açıklama</th>
-                  <th className="px-6 py-3 text-right text-xs font-semibold text-slate-400 uppercase tracking-wider">Alınan</th>
-                  <th className="px-6 py-3 text-right text-xs font-semibold text-slate-400 uppercase tracking-wider">Verilen</th>
+                  <th className="px-6 py-3 text-right text-xs font-semibold text-slate-400 uppercase tracking-wider">Bakiye +</th>
+                  <th className="px-6 py-3 text-right text-xs font-semibold text-slate-400 uppercase tracking-wider">Bakiye -</th>
                   <th className="px-6 py-3 text-right text-xs font-semibold text-slate-400 uppercase tracking-wider">Bakiye</th>
                   <th className="px-6 py-3 text-center text-xs font-semibold text-slate-400 uppercase tracking-wider">Belge</th>
                   <th className="px-6 py-3"></th>

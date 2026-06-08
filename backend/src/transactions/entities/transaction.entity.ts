@@ -62,6 +62,10 @@ export class Transaction {
   @Column({ nullable: true })
   invoiceFileName: string;
 
+  // verilen türündeyse otomatik oluşturulan bakiye kaydının ID'si
+  @Column({ nullable: true })
+  linkedBalanceEntryId: string | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

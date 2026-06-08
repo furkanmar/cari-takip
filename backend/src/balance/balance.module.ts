@@ -12,5 +12,6 @@ import { FilesModule } from '../files/files.module';
   ],
   providers: [BalanceService],
   controllers: [BalanceController],
+  exports: [BalanceService],
 })
 export class BalanceModule {}
