@@ -6,6 +6,7 @@ import {
   Delete,
   Body,
   Param,
+  Query,
   UseGuards,
   Request,
 } from '@nestjs/common';
@@ -25,8 +26,8 @@ export class CompaniesController {
   }
 
   @Get()
-  findAll(@Request() req) {
-    return this.companiesService.findAll(req.user.id);
+  findAll(@Request() req, @Query('includeArchived') includeArchived?: string) {
+    return this.companiesService.findAll(req.user.id, includeArchived === 'true');
   }
 
   @Get(':id')
@@ -37,6 +38,16 @@ export class CompaniesController {
   @Put(':id')
   update(@Request() req, @Param('id') id: string, @Body() dto: UpdateCompanyDto) {
     return this.companiesService.update(req.user.id, id, dto);
+  }
+
+  @Put(':id/archive')
+  archive(@Request() req, @Param('id') id: string) {
+    return this.companiesService.archive(req.user.id, id);
+  }
+
+  @Put(':id/unarchive')
+  unarchive(@Request() req, @Param('id') id: string) {
+    return this.companiesService.unarchive(req.user.id, id);
   }
 
   @Delete(':id')

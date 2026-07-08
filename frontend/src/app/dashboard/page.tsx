@@ -12,6 +12,7 @@ interface Company {
   address: string;
   totalReceivable: string;
   totalPayable: string;
+  isArchived: boolean;
 }
 
 const fmt = (n: number) =>
@@ -28,18 +29,21 @@ export default function DashboardPage() {
   const [form, setForm] = useState(emptyForm());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [showArchived, setShowArchived] = useState(false);
 
   const fetchCompanies = async () => {
-    const res = await api.get("/companies");
+    const res = await api.get(`/companies?includeArchived=${showArchived}`);
     setCompanies(res.data);
     setLoading(false);
   };
 
-  useEffect(() => { fetchCompanies(); }, []);
+  useEffect(() => { fetchCompanies(); }, [showArchived]);
 
-  const totalReceivable = companies.reduce((s, c) => s + parseFloat(c.totalReceivable || "0"), 0);
-  const totalPayable = companies.reduce((s, c) => s + parseFloat(c.totalPayable || "0"), 0);
-  const netBalance = totalReceivable - totalPayable;
+  const totalReceivable = companies.filter(c => !c.isArchived).reduce((s, c) => s + parseFloat(c.totalReceivable || "0"), 0);
+  const totalPayable = companies.filter(c => !c.isArchived).reduce((s, c) => s + parseFloat(c.totalPayable || "0"), 0);
+  // net > 0 = toplam borç, net <= 0 = kapatılmış
+  const netDebt = totalReceivable - totalPayable;
+  const isDebt = netDebt > 0;
 
   const openAdd = () => {
     setEditingId(null);
@@ -77,6 +81,23 @@ export default function DashboardPage() {
     }
   };
 
+  const handleDelete = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    if (!confirm("Bu şirketi ve tüm işlemlerini silmek istediğinize emin misiniz?")) return;
+    await api.delete(`/companies/${id}`);
+    fetchCompanies();
+  };
+
+  const handleArchive = async (e: React.MouseEvent, c: Company) => {
+    e.stopPropagation();
+    if (c.isArchived) {
+      await api.put(`/companies/${c.id}/unarchive`);
+    } else {
+      await api.put(`/companies/${c.id}/archive`);
+    }
+    fetchCompanies();
+  };
+
   if (loading) return (
     <div className="flex justify-center mt-32">
       <div className="animate-spin rounded-full h-10 w-10 border-4 border-blue-600 border-t-transparent" />
@@ -88,17 +109,17 @@ export default function DashboardPage() {
       {/* Özet kartlar */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Toplam Alınan</p>
-          <p className="text-3xl font-bold text-emerald-600">₺{fmt(totalReceivable)}</p>
+          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Toplam Borç +</p>
+          <p className="text-3xl font-bold text-red-500">₺{fmt(totalReceivable)}</p>
         </div>
         <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Toplam Verilen</p>
-          <p className="text-3xl font-bold text-red-500">₺{fmt(totalPayable)}</p>
+          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Toplam Borç -</p>
+          <p className="text-3xl font-bold text-emerald-600">₺{fmt(totalPayable)}</p>
         </div>
-        <div className={`rounded-2xl p-6 border shadow-sm ${netBalance >= 0 ? "bg-blue-600 border-blue-700" : "bg-red-600 border-red-700"}`}>
-          <p className="text-xs font-semibold text-white/70 uppercase tracking-wider mb-3">Net Bakiye</p>
-          <p className="text-3xl font-bold text-white">₺{fmt(Math.abs(netBalance))}</p>
-          <p className="text-xs text-white/70 mt-1">{netBalance >= 0 ? "Alacaklısın" : "Vereceksin"}</p>
+        <div className={`rounded-2xl p-6 border shadow-sm ${isDebt ? "bg-red-600 border-red-700" : "bg-emerald-600 border-emerald-700"}`}>
+          <p className="text-xs font-semibold text-white/70 uppercase tracking-wider mb-3">Net Borç</p>
+          <p className="text-3xl font-bold text-white">₺{fmt(Math.abs(netDebt))}</p>
+          <p className="text-xs text-white/70 mt-1">{isDebt ? "Borçlusun" : "Kapatıldı"}</p>
         </div>
       </div>
 
@@ -109,10 +130,16 @@ export default function DashboardPage() {
             <h2 className="font-bold text-slate-800 text-lg">Şirketler</h2>
             <p className="text-sm text-slate-400">{companies.length} kayıt</p>
           </div>
-          <button onClick={openAdd}
-            className="flex items-center gap-2 bg-blue-600 text-white text-sm font-semibold px-4 py-2 rounded-xl hover:bg-blue-700 transition-colors">
-            <span className="text-lg leading-none">+</span> Şirket Ekle
-          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setShowArchived(v => !v)}
+              className={`text-sm font-medium px-3 py-1.5 rounded-xl border transition-colors ${showArchived ? "bg-amber-50 border-amber-200 text-amber-700" : "border-slate-200 text-slate-500 hover:bg-slate-50"}`}>
+              {showArchived ? "🗂️ Arşiv Görünüyor" : "🗂️ Arşivi Göster"}
+            </button>
+            <button onClick={openAdd}
+              className="flex items-center gap-2 bg-blue-600 text-white text-sm font-semibold px-4 py-2 rounded-xl hover:bg-blue-700 transition-colors">
+              <span className="text-lg leading-none">+</span> Şirket Ekle
+            </button>
+          </div>
         </div>
 
         {showForm && (
@@ -158,9 +185,10 @@ export default function DashboardPage() {
               const receivable = parseFloat(c.totalReceivable || "0");
               const payable = parseFloat(c.totalPayable || "0");
               const net = receivable - payable;
+              const debt = net > 0;
               return (
                 <div key={c.id} onClick={() => router.push(`/dashboard/companies/${c.id}`)}
-                  className="flex items-center justify-between px-6 py-4 hover:bg-slate-50 cursor-pointer transition-colors group">
+                  className={`flex items-center justify-between px-6 py-4 hover:bg-slate-50 cursor-pointer transition-colors group ${c.isArchived ? "opacity-60" : ""}`}>
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 rounded-xl bg-slate-100 group-hover:bg-blue-50 flex items-center justify-center transition-colors">
                       <span className="text-slate-500 group-hover:text-blue-600 font-bold text-sm transition-colors">
@@ -168,23 +196,41 @@ export default function DashboardPage() {
                       </span>
                     </div>
                     <div>
-                      <p className="font-semibold text-slate-800">{c.name}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold text-slate-800">{c.name}</p>
+                        {c.isArchived && (
+                          <span className="text-xs bg-amber-100 text-amber-600 font-semibold px-1.5 py-0.5 rounded">Arşiv</span>
+                        )}
+                      </div>
                       <p className="text-xs text-slate-400">{c.taxNumber || c.phone || "—"}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
                     <div className="text-right">
-                      <p className={`font-bold text-lg ${net >= 0 ? "text-emerald-600" : "text-red-500"}`}>
-                        {net >= 0 ? "+" : "-"}₺{fmt(Math.abs(net))}
+                      <p className={`font-bold text-lg ${debt ? "text-red-500" : "text-emerald-600"}`}>
+                        {debt ? "+" : "-"}₺{fmt(Math.abs(net))}
                       </p>
                       <p className="text-xs text-slate-400">
-                        Al: ₺{fmt(receivable)} · Ver: ₺{fmt(payable)}
+                        B+: ₺{fmt(receivable)} · B-: ₺{fmt(payable)}
                       </p>
                     </div>
-                    <button onClick={(e) => openEdit(e, c)}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-blue-600 p-1.5 rounded-lg hover:bg-blue-50">
-                      ✏️
-                    </button>
+                    <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                      <button onClick={(e) => openEdit(e, c)}
+                        title="Düzenle"
+                        className="text-slate-400 hover:text-blue-600 p-1.5 rounded-lg hover:bg-blue-50 transition-colors">
+                        ✏️
+                      </button>
+                      <button onClick={(e) => handleArchive(e, c)}
+                        title={c.isArchived ? "Arşivden Çıkar" : "Arşivle"}
+                        className="text-slate-400 hover:text-amber-600 p-1.5 rounded-lg hover:bg-amber-50 transition-colors">
+                        🗂️
+                      </button>
+                      <button onClick={(e) => handleDelete(e, c.id)}
+                        title="Sil"
+                        className="text-slate-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50 transition-colors">
+                        🗑️
+                      </button>
+                    </div>
                   </div>
                 </div>
               );

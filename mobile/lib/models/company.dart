@@ -7,6 +7,7 @@ class Company {
   final String? address;
   final double totalReceivable;
   final double totalPayable;
+  final bool isArchived;
 
   Company({
     required this.id,
@@ -17,8 +18,10 @@ class Company {
     this.address,
     required this.totalReceivable,
     required this.totalPayable,
+    this.isArchived = false,
   });
 
+  // net > 0 = biz borçluyuz
   double get netBalance => totalReceivable - totalPayable;
 
   factory Company.fromJson(Map<String, dynamic> json) => Company(
@@ -30,5 +33,6 @@ class Company {
         address: json['address'],
         totalReceivable: double.tryParse(json['totalReceivable'].toString()) ?? 0,
         totalPayable: double.tryParse(json['totalPayable'].toString()) ?? 0,
+        isArchived: json['isArchived'] == true,
       );
 }

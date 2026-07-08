@@ -51,7 +51,7 @@ export class TransactionsService {
     await this.companiesService.findOne(userId, companyId);
     return this.transactionsRepository.find({
       where: { userId, companyId },
-      order: { date: 'ASC', createdAt: 'ASC' },
+      order: { date: 'DESC', createdAt: 'DESC' },
     });
   }
 

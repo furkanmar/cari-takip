@@ -39,10 +39,13 @@ export class Company {
   address: string;
 
   @Column({ type: 'decimal', precision: 15, scale: 2, default: 0 })
-  totalReceivable: number; // toplam alacak
+  totalReceivable: number;
 
   @Column({ type: 'decimal', precision: 15, scale: 2, default: 0 })
-  totalPayable: number; // toplam verecek
+  totalPayable: number;
+
+  @Column({ type: 'boolean', default: false })
+  isArchived: boolean;
 
   @CreateDateColumn()
   createdAt: Date;

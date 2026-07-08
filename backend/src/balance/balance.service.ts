@@ -22,7 +22,7 @@ export class BalanceService {
   async findAll(userId: string): Promise<BalanceEntry[]> {
     return this.balanceRepository.find({
       where: { userId },
-      order: { date: 'ASC', createdAt: 'ASC' },
+      order: { date: 'DESC', createdAt: 'DESC' },
     });
   }
 

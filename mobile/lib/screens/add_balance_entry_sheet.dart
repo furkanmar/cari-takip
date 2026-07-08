@@ -1,25 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
-import '../models/transaction.dart';
-import '../services/transaction_service.dart';
+import '../models/balance_entry.dart';
+import '../services/balance_service.dart';
 
-class AddTransactionSheet extends StatefulWidget {
-  final String companyId;
-  final Transaction? existing;
+class AddBalanceEntrySheet extends StatefulWidget {
+  final BalanceEntry? existing;
 
-  const AddTransactionSheet({super.key, required this.companyId, this.existing});
+  const AddBalanceEntrySheet({super.key, this.existing});
 
   @override
-  State<AddTransactionSheet> createState() => _AddTransactionSheetState();
+  State<AddBalanceEntrySheet> createState() => _AddBalanceEntrySheetState();
 }
 
-class _AddTransactionSheetState extends State<AddTransactionSheet> {
+class _AddBalanceEntrySheetState extends State<AddBalanceEntrySheet> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _descCtrl;
   late final TextEditingController _amountCtrl;
   late DateTime _date;
   DateTime? _dueDate;
-  late TransactionType _type;
+  late BalanceEntryType _type;
   PlatformFile? _invoice;
   bool _loading = false;
   String? _error;
@@ -34,7 +33,7 @@ class _AddTransactionSheetState extends State<AddTransactionSheet> {
     _amountCtrl = TextEditingController(text: e != null ? e.amount.toStringAsFixed(2) : '');
     _date = e != null ? DateTime.tryParse(e.date) ?? DateTime.now() : DateTime.now();
     _dueDate = e?.dueDate != null ? DateTime.tryParse(e!.dueDate!) : null;
-    _type = e?.type ?? TransactionType.receivable;
+    _type = e?.type ?? BalanceEntryType.received;
   }
 
   @override
@@ -65,7 +64,7 @@ class _AddTransactionSheetState extends State<AddTransactionSheet> {
       final dueDateStr = _dueDate != null ? _toIso(_dueDate!) : null;
 
       if (_isEdit) {
-        await TransactionService().update(
+        await BalanceService().update(
           id: widget.existing!.id,
           date: _toIso(_date),
           dueDate: dueDateStr,
@@ -74,8 +73,7 @@ class _AddTransactionSheetState extends State<AddTransactionSheet> {
           amount: amount,
         );
       } else {
-        await TransactionService().create(
-          companyId: widget.companyId,
+        await BalanceService().create(
           date: _toIso(_date),
           dueDate: dueDateStr,
           description: _descCtrl.text,
@@ -133,7 +131,7 @@ class _AddTransactionSheetState extends State<AddTransactionSheet> {
             if (!required && value != null) ...[
               const SizedBox(width: 8),
               GestureDetector(
-                onTap: () { onPicked(null); },
+                onTap: () => onPicked(null),
                 child: const Icon(Icons.close_rounded, size: 16, color: Color(0xFF94A3B8)),
               ),
             ],
@@ -145,6 +143,7 @@ class _AddTransactionSheetState extends State<AddTransactionSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final isReceived = _type == BalanceEntryType.received;
     return Container(
       decoration: const BoxDecoration(
         color: Colors.white,
@@ -155,9 +154,10 @@ class _AddTransactionSheetState extends State<AddTransactionSheet> {
         key: _formKey,
         child: SingleChildScrollView(
           child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: const Color(0xFFE2E8F0), borderRadius: BorderRadius.circular(2)))),
+            Center(child: Container(width: 40, height: 4,
+              decoration: BoxDecoration(color: const Color(0xFFE2E8F0), borderRadius: BorderRadius.circular(2)))),
             const SizedBox(height: 20),
-            Text(_isEdit ? 'İşlemi Düzenle' : 'İşlem Ekle',
+            Text(_isEdit ? 'Hareketi Düzenle' : 'Hareket Ekle',
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFF0F172A))),
             const SizedBox(height: 16),
             if (_error != null) ...[
@@ -170,32 +170,36 @@ class _AddTransactionSheetState extends State<AddTransactionSheet> {
             ],
             // Tür seçimi
             Container(
-              decoration: BoxDecoration(color: const Color(0xFFF8FAFC), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE2E8F0))),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
               child: Row(children: [
                 Expanded(child: GestureDetector(
-                  onTap: () => setState(() => _type = TransactionType.receivable),
+                  onTap: () => setState(() => _type = BalanceEntryType.received),
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     decoration: BoxDecoration(
-                      color: _type == TransactionType.receivable ? const Color(0xFF2563EB) : Colors.transparent,
+                      color: isReceived ? const Color(0xFF059669) : Colors.transparent,
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Text('📈 Borç +', textAlign: TextAlign.center,
+                    child: Text('📈 Bakiye +', textAlign: TextAlign.center,
                       style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13,
-                        color: _type == TransactionType.receivable ? Colors.white : const Color(0xFF64748B))),
+                        color: isReceived ? Colors.white : const Color(0xFF64748B))),
                   ),
                 )),
                 Expanded(child: GestureDetector(
-                  onTap: () => setState(() => _type = TransactionType.payable),
+                  onTap: () => setState(() => _type = BalanceEntryType.paid),
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     decoration: BoxDecoration(
-                      color: _type == TransactionType.payable ? const Color(0xFF059669) : Colors.transparent,
+                      color: !isReceived ? const Color(0xFFDC2626) : Colors.transparent,
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Text('📉 Borç -', textAlign: TextAlign.center,
+                    child: Text('📉 Bakiye -', textAlign: TextAlign.center,
                       style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13,
-                        color: _type == TransactionType.payable ? Colors.white : const Color(0xFF64748B))),
+                        color: !isReceived ? Colors.white : const Color(0xFF64748B))),
                   ),
                 )),
               ]),
@@ -203,16 +207,12 @@ class _AddTransactionSheetState extends State<AddTransactionSheet> {
             const SizedBox(height: 12),
             Row(children: [
               Expanded(child: _datePicker(
-                label: 'Tarih',
-                value: _date,
-                required: true,
+                label: 'Tarih', value: _date, required: true,
                 onPicked: (d) { if (d != null) setState(() => _date = d); },
               )),
               const SizedBox(width: 10),
               Expanded(child: _datePicker(
-                label: 'Vade',
-                value: _dueDate,
-                required: false,
+                label: 'Vade', value: _dueDate, required: false,
                 onPicked: (d) => setState(() => _dueDate = d),
               )),
             ]),
@@ -242,15 +242,18 @@ class _AddTransactionSheetState extends State<AddTransactionSheet> {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: _invoice != null ? const Color(0xFF2563EB) : const Color(0xFFCBD5E1)),
+                    border: Border.all(
+                      color: _invoice != null ? const Color(0xFF2563EB) : const Color(0xFFCBD5E1)),
                   ),
                   child: Row(children: [
                     Icon(_invoice != null ? Icons.attach_file_rounded : Icons.upload_file_rounded,
                       color: _invoice != null ? const Color(0xFF2563EB) : const Color(0xFF64748B), size: 20),
                     const SizedBox(width: 10),
                     Expanded(child: Text(
-                      _invoice != null ? _invoice!.name : 'Fatura ekle (opsiyonel)',
-                      style: TextStyle(color: _invoice != null ? const Color(0xFF2563EB) : const Color(0xFF94A3B8), fontSize: 14),
+                      _invoice != null ? _invoice!.name : 'Belge ekle (opsiyonel)',
+                      style: TextStyle(
+                        color: _invoice != null ? const Color(0xFF2563EB) : const Color(0xFF94A3B8),
+                        fontSize: 14),
                     )),
                     if (_invoice != null)
                       GestureDetector(
@@ -264,8 +267,12 @@ class _AddTransactionSheetState extends State<AddTransactionSheet> {
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: _loading ? null : _submit,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: isReceived ? const Color(0xFF059669) : const Color(0xFFDC2626),
+              ),
               child: _loading
-                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  ? const SizedBox(height: 20, width: 20,
+                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                   : Text(_isEdit ? 'Güncelle' : 'Kaydet'),
             ),
           ]),

@@ -2,8 +2,10 @@ import '../core/api_client.dart';
 import '../models/company.dart';
 
 class CompanyService {
-  Future<List<Company>> getAll() async {
-    final res = await apiClient.get('/companies');
+  Future<List<Company>> getAll({bool includeArchived = false}) async {
+    final res = await apiClient.get('/companies', queryParameters: {
+      if (includeArchived) 'includeArchived': 'true',
+    });
     return (res.data as List).map((e) => Company.fromJson(e)).toList();
   }
 
@@ -49,5 +51,15 @@ class CompanyService {
 
   Future<void> delete(String id) async {
     await apiClient.delete('/companies/$id');
+  }
+
+  Future<Company> archive(String id) async {
+    final res = await apiClient.put('/companies/$id/archive');
+    return Company.fromJson(res.data);
+  }
+
+  Future<Company> unarchive(String id) async {
+    final res = await apiClient.put('/companies/$id/unarchive');
+    return Company.fromJson(res.data);
   }
 }

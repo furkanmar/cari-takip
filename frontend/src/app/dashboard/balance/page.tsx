@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import api from "@/lib/api";
 
 interface BalanceEntry {
@@ -49,6 +49,20 @@ export default function BalancePage() {
   const [invoice, setInvoice] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+  // Filtreler
+  const [filterType, setFilterType] = useState<"all" | "received" | "paid">("all");
+  const [filterFrom, setFilterFrom] = useState("");
+  const [filterTo, setFilterTo] = useState("");
+
+  const filtered = useMemo(() => {
+    return entries.filter(e => {
+      if (filterType !== "all" && e.type !== filterType) return false;
+      if (filterFrom && e.date < filterFrom) return false;
+      if (filterTo && e.date > filterTo) return false;
+      return true;
+    });
+  }, [entries, filterType, filterFrom, filterTo]);
 
   const fetchData = async () => {
     const [balRes, compRes] = await Promise.all([
@@ -180,6 +194,35 @@ export default function BalancePage() {
           </button>
         </div>
 
+        {/* Filtreler */}
+        <div className="px-6 py-3 bg-slate-50 border-b border-slate-100 flex flex-wrap items-center gap-3">
+          <div className="flex rounded-xl border border-slate-200 overflow-hidden text-xs font-semibold">
+            {(["all", "received", "paid"] as const).map(t => (
+              <button key={t} onClick={() => setFilterType(t)}
+                className={`px-3 py-1.5 transition-colors ${filterType === t ? "bg-blue-600 text-white" : "text-slate-500 hover:bg-slate-100"}`}>
+                {t === "all" ? "Tümü" : t === "received" ? "Bakiye +" : "Bakiye -"}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-2 text-xs text-slate-500">
+            <span>Başlangıç:</span>
+            <input type="date" value={filterFrom} onChange={e => setFilterFrom(e.target.value)}
+              className="border border-slate-200 rounded-lg px-2 py-1 text-xs text-slate-700 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500" />
+          </div>
+          <div className="flex items-center gap-2 text-xs text-slate-500">
+            <span>Bitiş:</span>
+            <input type="date" value={filterTo} onChange={e => setFilterTo(e.target.value)}
+              className="border border-slate-200 rounded-lg px-2 py-1 text-xs text-slate-700 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500" />
+          </div>
+          {(filterType !== "all" || filterFrom || filterTo) && (
+            <button onClick={() => { setFilterType("all"); setFilterFrom(""); setFilterTo(""); }}
+              className="text-xs text-red-500 hover:text-red-700 font-semibold">✕ Temizle</button>
+          )}
+          {(filterType !== "all" || filterFrom || filterTo) && (
+            <span className="text-xs text-slate-400">{filtered.length} / {entries.length} hareket</span>
+          )}
+        </div>
+
         {showForm && (
           <form onSubmit={handleSubmit} className="px-6 py-5 bg-slate-50 border-b border-slate-100 space-y-3">
             <p className="text-sm font-semibold text-slate-700">{editingId ? "✏️ Hareketi Düzenle" : "➕ Yeni Hareket"}</p>
@@ -237,10 +280,12 @@ export default function BalancePage() {
           </form>
         )}
 
-        {entries.length === 0 ? (
+        {filtered.length === 0 ? (
           <div className="text-center py-20">
             <p className="text-4xl mb-3">💰</p>
-            <p className="text-slate-500 font-medium">Henüz hareket eklenmedi</p>
+            <p className="text-slate-500 font-medium">
+              {entries.length === 0 ? "Henüz hareket eklenmedi" : "Filtreyle eşleşen hareket yok"}
+            </p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -258,7 +303,7 @@ export default function BalancePage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {entries.map((e) => {
+                {filtered.map((e) => {
                   const balance = parseFloat(e.runningBalance);
                   const amount = parseFloat(e.amount);
                   const overdue = isOverdue(e.dueDate);

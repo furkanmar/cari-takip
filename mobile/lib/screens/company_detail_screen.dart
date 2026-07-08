@@ -21,6 +21,11 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
   List<Transaction> _transactions = [];
   bool _loading = true;
 
+  // Filtreler
+  TransactionType? _filterType;
+  DateTime? _filterStart;
+  DateTime? _filterEnd;
+
   @override
   void initState() {
     super.initState();
@@ -39,6 +44,29 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
     } catch (_) {}
     if (mounted) setState(() => _loading = false);
   }
+
+  List<Transaction> get _filtered {
+    return _transactions.where((tx) {
+      if (_filterType != null && tx.type != _filterType) return false;
+      if (_filterStart != null) {
+        final d = DateTime.tryParse(tx.date);
+        if (d == null || d.isBefore(_filterStart!)) return false;
+      }
+      if (_filterEnd != null) {
+        final d = DateTime.tryParse(tx.date);
+        if (d == null || d.isAfter(_filterEnd!.add(const Duration(days: 1)))) return false;
+      }
+      return true;
+    }).toList();
+  }
+
+  bool get _hasFilter => _filterType != null || _filterStart != null || _filterEnd != null;
+
+  void _clearFilters() => setState(() {
+    _filterType = null;
+    _filterStart = null;
+    _filterEnd = null;
+  });
 
   Future<void> _editTransaction(Transaction tx) async {
     final updated = await showModalBottomSheet<bool>(
@@ -68,12 +96,26 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
     }
   }
 
+  String _formatDate(DateTime d) =>
+      '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year}';
+
+  Future<void> _pickDate({required bool isStart}) async {
+    final d = await showDatePicker(
+      context: context,
+      initialDate: (isStart ? _filterStart : _filterEnd) ?? DateTime.now(),
+      firstDate: DateTime(2000),
+      lastDate: DateTime.now().add(const Duration(days: 3650)),
+    );
+    if (d != null) setState(() => isStart ? _filterStart = d : _filterEnd = d);
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
     if (_company == null) return const Scaffold(body: Center(child: Text('Şirket bulunamadı')));
 
     final net = _company!.netBalance;
+    final filtered = _filtered;
 
     return Scaffold(
       appBar: AppBar(
@@ -103,29 +145,46 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
         child: CustomScrollView(
           slivers: [
             SliverToBoxAdapter(child: _buildSummary(net)),
+            SliverToBoxAdapter(child: _buildFilterBar()),
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                child: Text('İşlem Geçmişi (${_transactions.length})',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF0F172A))),
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+                child: Row(children: [
+                  Text('İşlem Geçmişi (${filtered.length})',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF0F172A))),
+                  if (_hasFilter) ...[
+                    const SizedBox(width: 8),
+                    GestureDetector(
+                      onTap: _clearFilters,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(color: const Color(0xFFEFF6FF), borderRadius: BorderRadius.circular(20)),
+                        child: const Text('Temizle', style: TextStyle(color: Color(0xFF2563EB), fontSize: 11, fontWeight: FontWeight.w600)),
+                      ),
+                    ),
+                  ],
+                ]),
               ),
             ),
-            _transactions.isEmpty
+            filtered.isEmpty
                 ? SliverFillRemaining(
                     child: Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                       const Text('📋', style: TextStyle(fontSize: 48)),
                       const SizedBox(height: 12),
-                      const Text('Henüz işlem eklenmedi', style: TextStyle(color: Color(0xFF64748B))),
+                      Text(
+                        _hasFilter ? 'Filtreye uygun işlem yok' : 'Henüz işlem eklenmedi',
+                        style: const TextStyle(color: Color(0xFF64748B)),
+                      ),
                     ])),
                   )
                 : SliverList(
                     delegate: SliverChildBuilderDelegate(
                       (_, i) => _TransactionTile(
-                        transaction: _transactions[i],
+                        transaction: filtered[i],
                         onDelete: _deleteTransaction,
                         onEdit: _editTransaction,
                       ),
-                      childCount: _transactions.length,
+                      childCount: filtered.length,
                     ),
                   ),
             const SliverPadding(padding: EdgeInsets.only(bottom: 32)),
@@ -135,39 +194,154 @@ class _CompanyDetailScreenState extends State<CompanyDetailScreen> {
     );
   }
 
+  Widget _buildFilterBar() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+      child: Column(children: [
+        // Tür filtresi
+        Row(children: [
+          _FilterChip(label: 'Tümü', active: _filterType == null,
+            onTap: () => setState(() => _filterType = null)),
+          const SizedBox(width: 8),
+          _FilterChip(label: 'Borç +', active: _filterType == TransactionType.receivable,
+            activeColor: const Color(0xFFDC2626),
+            onTap: () => setState(() => _filterType =
+              _filterType == TransactionType.receivable ? null : TransactionType.receivable)),
+          const SizedBox(width: 8),
+          _FilterChip(label: 'Borç -', active: _filterType == TransactionType.payable,
+            activeColor: const Color(0xFF059669),
+            onTap: () => setState(() => _filterType =
+              _filterType == TransactionType.payable ? null : TransactionType.payable)),
+        ]),
+        const SizedBox(height: 8),
+        // Tarih aralığı
+        Row(children: [
+          Expanded(child: _DateFilterButton(
+            label: 'Başlangıç',
+            value: _filterStart != null ? _formatDate(_filterStart!) : null,
+            onTap: () => _pickDate(isStart: true),
+            onClear: _filterStart != null ? () => setState(() => _filterStart = null) : null,
+          )),
+          const SizedBox(width: 8),
+          Expanded(child: _DateFilterButton(
+            label: 'Bitiş',
+            value: _filterEnd != null ? _formatDate(_filterEnd!) : null,
+            onTap: () => _pickDate(isStart: false),
+            onClear: _filterEnd != null ? () => setState(() => _filterEnd = null) : null,
+          )),
+        ]),
+      ]),
+    );
+  }
+
   Widget _buildSummary(double net) {
+    // net > 0 = biz borçluyuz = KIRMIZI
+    final isDebt = net > 0;
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(children: [
         Row(children: [
-          Expanded(child: _Card(title: 'Alınan', value: formatMoney(_company!.totalReceivable), color: const Color(0xFF059669))),
+          Expanded(child: _Card(
+            title: 'Borç +',
+            value: formatMoney(_company!.totalReceivable),
+            color: const Color(0xFFDC2626),
+          )),
           const SizedBox(width: 12),
-          Expanded(child: _Card(title: 'Verilen', value: formatMoney(_company!.totalPayable), color: const Color(0xFFDC2626))),
+          Expanded(child: _Card(
+            title: 'Borç -',
+            value: formatMoney(_company!.totalPayable),
+            color: const Color(0xFF059669),
+          )),
         ]),
         const SizedBox(height: 12),
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: net >= 0 ? const Color(0xFF2563EB) : const Color(0xFFDC2626),
+            color: isDebt ? const Color(0xFFDC2626) : const Color(0xFF059669),
             borderRadius: BorderRadius.circular(16),
           ),
           child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
             Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('Net Bakiye', style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w600)),
+              const Text('Net Borç', style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w600)),
               const SizedBox(height: 4),
               Text(formatMoneyAbs(net), style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
             ]),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(20)),
-              child: Text(net >= 0 ? 'Alacaklısın' : 'Vereceksin', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 12)),
+              child: Text(isDebt ? 'Borçlusun' : 'Kapatıldı',
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 12)),
             ),
           ]),
         ),
       ]),
     );
   }
+}
+
+class _FilterChip extends StatelessWidget {
+  final String label;
+  final bool active;
+  final Color activeColor;
+  final VoidCallback onTap;
+  const _FilterChip({required this.label, required this.active, required this.onTap, this.activeColor = const Color(0xFF2563EB)});
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: onTap,
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: active ? activeColor : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: active ? activeColor : const Color(0xFFE2E8F0)),
+      ),
+      child: Text(label, style: TextStyle(
+        color: active ? Colors.white : const Color(0xFF64748B),
+        fontSize: 12, fontWeight: FontWeight.w600,
+      )),
+    ),
+  );
+}
+
+class _DateFilterButton extends StatelessWidget {
+  final String label;
+  final String? value;
+  final VoidCallback onTap;
+  final VoidCallback? onClear;
+  const _DateFilterButton({required this.label, this.value, required this.onTap, this.onClear});
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: onTap,
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: value != null ? const Color(0xFF2563EB) : const Color(0xFFE2E8F0)),
+      ),
+      child: Row(children: [
+        Icon(Icons.calendar_today_rounded, size: 13,
+          color: value != null ? const Color(0xFF2563EB) : const Color(0xFF94A3B8)),
+        const SizedBox(width: 6),
+        Expanded(child: Text(
+          value ?? label,
+          style: TextStyle(
+            fontSize: 12,
+            color: value != null ? const Color(0xFF0F172A) : const Color(0xFF94A3B8),
+            fontWeight: value != null ? FontWeight.w600 : FontWeight.normal,
+          ),
+        )),
+        if (onClear != null)
+          GestureDetector(
+            onTap: onClear,
+            child: const Icon(Icons.close_rounded, size: 14, color: Color(0xFF94A3B8)),
+          ),
+      ]),
+    ),
+  );
 }
 
 class _Card extends StatelessWidget {
@@ -195,8 +369,19 @@ class _TransactionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Borç+ (receivable) = kırmızı, Borç- (payable) = yeşil
     final isReceivable = transaction.type == TransactionType.receivable;
     final balance = transaction.runningBalance;
+
+    // Running balance: > 0 borçluyuz = kırmızı, < 0 fazla ödedik = yeşil
+    Color balanceColor;
+    if (balance > 0) {
+      balanceColor = const Color(0xFFDC2626);
+    } else if (balance < 0) {
+      balanceColor = const Color(0xFF059669);
+    } else {
+      balanceColor = const Color(0xFF94A3B8);
+    }
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -212,12 +397,12 @@ class _TransactionTile extends StatelessWidget {
             Container(
               width: 40, height: 40,
               decoration: BoxDecoration(
-                color: isReceivable ? const Color(0xFFECFDF5) : const Color(0xFFFEF2F2),
+                color: isReceivable ? const Color(0xFFFEF2F2) : const Color(0xFFECFDF5),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(
                 isReceivable ? Icons.trending_up_rounded : Icons.trending_down_rounded,
-                color: isReceivable ? const Color(0xFF059669) : const Color(0xFFDC2626),
+                color: isReceivable ? const Color(0xFFDC2626) : const Color(0xFF059669),
                 size: 20,
               ),
             ),
@@ -247,11 +432,14 @@ class _TransactionTile extends StatelessWidget {
             Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
               Text(
                 '${isReceivable ? '+' : '-'}${formatMoney(transaction.amount)}',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: isReceivable ? const Color(0xFF059669) : const Color(0xFFDC2626)),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold, fontSize: 14,
+                  color: isReceivable ? const Color(0xFFDC2626) : const Color(0xFF059669),
+                ),
               ),
               Text(
                 formatMoney(balance),
-                style: TextStyle(fontSize: 11, color: balance >= 0 ? const Color(0xFF2563EB) : const Color(0xFFDC2626), fontWeight: FontWeight.w500),
+                style: TextStyle(fontSize: 11, color: balanceColor, fontWeight: FontWeight.w500),
               ),
             ]),
             const SizedBox(width: 4),

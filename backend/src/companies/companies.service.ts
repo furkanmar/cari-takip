@@ -1,13 +1,14 @@
 import {
   Injectable,
   NotFoundException,
-  ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Company } from './entities/company.entity';
 import { CreateCompanyDto } from './dto/create-company.dto';
 import { UpdateCompanyDto } from './dto/update-company.dto';
+
+const toUpperName = (name: string) => name.trim().toUpperCase();
 
 @Injectable()
 export class CompaniesService {
@@ -17,13 +18,19 @@ export class CompaniesService {
   ) {}
 
   async create(userId: string, dto: CreateCompanyDto): Promise<Company> {
-    const company = this.companiesRepository.create({ ...dto, userId });
+    const company = this.companiesRepository.create({
+      ...dto,
+      name: toUpperName(dto.name),
+      userId,
+    });
     return this.companiesRepository.save(company);
   }
 
-  async findAll(userId: string): Promise<Company[]> {
+  async findAll(userId: string, includeArchived = false): Promise<Company[]> {
+    const where: any = { userId };
+    if (!includeArchived) where.isArchived = false;
     return this.companiesRepository.find({
-      where: { userId },
+      where,
       order: { name: 'ASC' },
     });
   }
@@ -39,6 +46,7 @@ export class CompaniesService {
   async update(userId: string, id: string, dto: UpdateCompanyDto): Promise<Company> {
     const company = await this.findOne(userId, id);
     Object.assign(company, dto);
+    if (dto.name) company.name = toUpperName(dto.name);
     return this.companiesRepository.save(company);
   }
 
@@ -47,11 +55,19 @@ export class CompaniesService {
     await this.companiesRepository.remove(company);
   }
 
-  async updateBalances(
-    companyId: string,
-    userId: string,
-  ): Promise<void> {
-    // Tüm işlemleri toplayıp company bakiyelerini güncelle
+  async archive(userId: string, id: string): Promise<Company> {
+    const company = await this.findOne(userId, id);
+    company.isArchived = true;
+    return this.companiesRepository.save(company);
+  }
+
+  async unarchive(userId: string, id: string): Promise<Company> {
+    const company = await this.findOne(userId, id);
+    company.isArchived = false;
+    return this.companiesRepository.save(company);
+  }
+
+  async updateBalances(companyId: string, userId: string): Promise<void> {
     const result = await this.companiesRepository
       .createQueryBuilder('company')
       .leftJoin('company.transactions', 'transaction')
