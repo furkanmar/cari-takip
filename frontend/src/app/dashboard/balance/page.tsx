@@ -67,7 +67,7 @@ export default function BalancePage() {
   const fetchData = async () => {
     const [balRes, compRes] = await Promise.all([
       api.get("/balance"),
-      api.get("/companies"),
+      api.get("/companies?includeArchived=true"),
     ]);
     setEntries(balRes.data);
     setCompanies(compRes.data);

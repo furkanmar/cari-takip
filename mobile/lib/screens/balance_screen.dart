@@ -36,7 +36,7 @@ class _BalanceScreenState extends State<BalanceScreen> {
     try {
       final results = await Future.wait([
         _balanceService.getAll(),
-        _companyService.getAll(),
+        _companyService.getAll(includeArchived: true),
       ]);
       _entries = results[0] as List<BalanceEntry>;
       _companies = results[1] as List<Company>;
