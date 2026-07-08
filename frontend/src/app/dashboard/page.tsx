@@ -32,15 +32,17 @@ export default function DashboardPage() {
   const [showArchived, setShowArchived] = useState(false);
 
   const fetchCompanies = async () => {
-    const res = await api.get(`/companies?includeArchived=${showArchived}`);
+    // Her zaman tümünü çek: toplamlar arşivlenenleri de kapsar
+    const res = await api.get(`/companies?includeArchived=true`);
     setCompanies(res.data);
     setLoading(false);
   };
 
-  useEffect(() => { fetchCompanies(); }, [showArchived]);
+  useEffect(() => { fetchCompanies(); }, []);
 
-  const totalReceivable = companies.filter(c => !c.isArchived).reduce((s, c) => s + parseFloat(c.totalReceivable || "0"), 0);
-  const totalPayable = companies.filter(c => !c.isArchived).reduce((s, c) => s + parseFloat(c.totalPayable || "0"), 0);
+  // Toplamlar: arşivlenenler dahil tüm şirketler
+  const totalReceivable = companies.reduce((s, c) => s + parseFloat(c.totalReceivable || "0"), 0);
+  const totalPayable = companies.reduce((s, c) => s + parseFloat(c.totalPayable || "0"), 0);
   // net > 0 = toplam borç, net <= 0 = kapatılmış
   const netDebt = totalReceivable - totalPayable;
   const isDebt = netDebt > 0;
@@ -128,7 +130,7 @@ export default function DashboardPage() {
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
           <div>
             <h2 className="font-bold text-slate-800 text-lg">Şirketler</h2>
-            <p className="text-sm text-slate-400">{companies.length} kayıt</p>
+            <p className="text-sm text-slate-400">{companies.filter(c => !c.isArchived).length} kayıt</p>
           </div>
           <div className="flex items-center gap-2">
             <button onClick={() => setShowArchived(v => !v)}
@@ -174,14 +176,14 @@ export default function DashboardPage() {
           </form>
         )}
 
-        {companies.length === 0 ? (
+        {companies.filter(c => !c.isArchived).length === 0 && !showArchived ? (
           <div className="text-center py-20">
             <p className="text-4xl mb-3">🏢</p>
             <p className="text-slate-500 font-medium">Henüz şirket eklenmedi</p>
           </div>
         ) : (
           <div className="divide-y divide-slate-100">
-            {companies.map((c) => {
+            {companies.filter(c => showArchived || !c.isArchived).map((c) => {
               const receivable = parseFloat(c.totalReceivable || "0");
               const payable = parseFloat(c.totalPayable || "0");
               const net = receivable - payable;

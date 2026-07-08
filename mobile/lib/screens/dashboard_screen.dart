@@ -29,16 +29,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      _companies = await _service.getAll(includeArchived: _showArchived);
+      // Her zaman tümünü çek: toplamlar arşivlenenleri de kapsar
+      _companies = await _service.getAll(includeArchived: true);
     } catch (_) {}
     if (mounted) setState(() => _loading = false);
   }
 
-  // Summary sadece arşivlenmemiş firmaları sayar
-  List<Company> get _activeCompanies => _companies.where((c) => !c.isArchived).toList();
+  // Listede gösterilenler: toggle'a göre filtrele
+  List<Company> get _displayed =>
+      _showArchived ? _companies : _companies.where((c) => !c.isArchived).toList();
 
-  double get _totalReceivable => _activeCompanies.fold(0, (s, c) => s + c.totalReceivable);
-  double get _totalPayable => _activeCompanies.fold(0, (s, c) => s + c.totalPayable);
+  // Toplamlar: arşivlenenler dahil tüm şirketler
+  double get _totalReceivable => _companies.fold(0, (s, c) => s + c.totalReceivable);
+  double get _totalPayable => _companies.fold(0, (s, c) => s + c.totalPayable);
   // net > 0 = biz borçluyuz
   double get _netBalance => _totalReceivable - _totalPayable;
 
@@ -128,14 +131,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                             decoration: BoxDecoration(color: const Color(0xFFEFF6FF), borderRadius: BorderRadius.circular(20)),
-                            child: Text('${_companies.length}', style: const TextStyle(color: Color(0xFF2563EB), fontWeight: FontWeight.w600, fontSize: 12)),
+                            child: Text('${_displayed.length}', style: const TextStyle(color: Color(0xFF2563EB), fontWeight: FontWeight.w600, fontSize: 12)),
                           ),
                         ]),
                         GestureDetector(
-                          onTap: () {
-                            setState(() => _showArchived = !_showArchived);
-                            _load();
-                          },
+                          onTap: () => setState(() => _showArchived = !_showArchived),
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                             decoration: BoxDecoration(
@@ -162,7 +162,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ]),
                     ),
                   ),
-                  _companies.isEmpty
+                  _displayed.isEmpty
                       ? SliverFillRemaining(
                           child: Center(
                             child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
@@ -175,12 +175,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       : SliverList(
                           delegate: SliverChildBuilderDelegate(
                             (_, i) => _CompanyTile(
-                              company: _companies[i],
+                              company: _displayed[i],
                               onRefresh: _load,
-                              onArchive: () => _archiveCompany(_companies[i]),
-                              onDelete: () => _deleteCompany(context, _companies[i]),
+                              onArchive: () => _archiveCompany(_displayed[i]),
+                              onDelete: () => _deleteCompany(context, _displayed[i]),
                             ),
-                            childCount: _companies.length,
+                            childCount: _displayed.length,
                           ),
                         ),
                   const SliverPadding(padding: EdgeInsets.only(bottom: 90)),
