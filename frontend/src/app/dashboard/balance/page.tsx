@@ -319,13 +319,13 @@ export default function BalancePage() {
                       </td>
                       <td className="px-6 py-4 text-sm text-slate-700">{e.description}</td>
                       <td className="px-6 py-4 text-right text-sm font-semibold text-emerald-600">
-                        {e.type === "received" ? `+₺${fmt(amount)}` : ""}
+                        {e.type === "received" ? `₺${fmt(amount)}` : ""}
                       </td>
                       <td className="px-6 py-4 text-right text-sm font-semibold text-red-500">
-                        {e.type === "paid" ? `-₺${fmt(amount)}` : ""}
+                        {e.type === "paid" ? `₺${fmt(amount)}` : ""}
                       </td>
                       <td className={`px-6 py-4 text-right text-sm font-bold ${balance >= 0 ? "text-blue-600" : "text-red-600"}`}>
-                        {balance >= 0 ? "+" : ""}₺{fmt(balance)}
+                        ₺{fmt(Math.abs(balance))}
                       </td>
                       <td className="px-6 py-4 text-center">
                         {e.invoiceUrl ? (

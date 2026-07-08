@@ -480,14 +480,14 @@ class _BalanceEntryTile extends StatelessWidget {
             ])),
             Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
               Text(
-                '${isReceived ? '+' : '-'}${formatMoney(entry.amount)}',
+                formatMoney(entry.amount),
                 style: TextStyle(
                   fontWeight: FontWeight.bold, fontSize: 14,
                   color: isReceived ? const Color(0xFF059669) : const Color(0xFFDC2626),
                 ),
               ),
               Text(
-                formatMoney(balance),
+                formatMoneyAbs(balance),
                 style: TextStyle(
                   fontSize: 11,
                   color: balance >= 0 ? const Color(0xFF2563EB) : const Color(0xFFDC2626),

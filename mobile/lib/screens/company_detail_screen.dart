@@ -431,14 +431,14 @@ class _TransactionTile extends StatelessWidget {
             ])),
             Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
               Text(
-                '${isReceivable ? '+' : '-'}${formatMoney(transaction.amount)}',
+                formatMoney(transaction.amount),
                 style: TextStyle(
                   fontWeight: FontWeight.bold, fontSize: 14,
                   color: isReceivable ? const Color(0xFFDC2626) : const Color(0xFF059669),
                 ),
               ),
               Text(
-                formatMoney(balance),
+                formatMoneyAbs(balance),
                 style: TextStyle(fontSize: 11, color: balanceColor, fontWeight: FontWeight.w500),
               ),
             ]),

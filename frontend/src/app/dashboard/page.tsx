@@ -208,7 +208,7 @@ export default function DashboardPage() {
                   <div className="flex items-center gap-2">
                     <div className="text-right">
                       <p className={`font-bold text-lg ${debt ? "text-red-500" : "text-emerald-600"}`}>
-                        {debt ? "+" : "-"}₺{fmt(Math.abs(net))}
+                        ₺{fmt(Math.abs(net))}
                       </p>
                       <p className="text-xs text-slate-400">
                         B+: ₺{fmt(receivable)} · B-: ₺{fmt(payable)}

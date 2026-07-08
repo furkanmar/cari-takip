@@ -307,13 +307,13 @@ export default function CompanyPage() {
                       </td>
                       <td className="px-6 py-4 text-sm text-slate-700">{t.description}</td>
                       <td className="px-6 py-4 text-right text-sm font-semibold text-red-500">
-                        {t.type === "receivable" ? `+₺${fmt(amount)}` : ""}
+                        {t.type === "receivable" ? `₺${fmt(amount)}` : ""}
                       </td>
                       <td className="px-6 py-4 text-right text-sm font-semibold text-emerald-600">
-                        {t.type === "payable" ? `-₺${fmt(amount)}` : ""}
+                        {t.type === "payable" ? `₺${fmt(amount)}` : ""}
                       </td>
                       <td className={`px-6 py-4 text-right text-sm font-bold ${balance > 0 ? "text-red-600" : balance < 0 ? "text-emerald-600" : "text-slate-400"}`}>
-                        {balance > 0 ? "+" : ""}₺{fmt(balance)}
+                        ₺{fmt(Math.abs(balance))}
                       </td>
                       <td className="px-6 py-4 text-center">
                         {t.invoiceUrl ? (

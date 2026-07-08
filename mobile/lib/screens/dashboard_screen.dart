@@ -329,7 +329,7 @@ class _CompanyTile extends StatelessWidget {
                 ])),
                 Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
                   Text(
-                    '${isDebt ? '+' : '-'}${formatMoneyAbs(net)}',
+                    formatMoneyAbs(net),
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16,
                       color: isDebt ? const Color(0xFFDC2626) : const Color(0xFF059669)),
                   ),
