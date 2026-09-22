@@ -63,7 +63,8 @@ services:
       - internal
 
   minio:
-    image: minio/minio:latest
+    # minio/minio Docker Hub'dan kaldırıldı; Pigsty topluluğunun sürdürdüğü uyumlu fork.
+    image: pgsty/minio:latest
     container_name: cari-takip-minio
     restart: unless-stopped
     environment:
@@ -73,7 +74,7 @@ services:
       - cari-takip-minio-data:/data
     command: server /data --console-address ":9001"
     healthcheck:
-      test: ['CMD', 'mc', 'ready', 'local']
+      test: ['CMD-SHELL', 'mc ready local || curl -fs http://localhost:9000/minio/health/live']
       interval: 10s
       timeout: 5s
       retries: 5
