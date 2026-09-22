@@ -5,7 +5,9 @@ import {
   UseGuards,
   Request,
   HttpCode,
+  ForbiddenException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
@@ -13,10 +15,17 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private authService: AuthService) {}
+  constructor(
+    private authService: AuthService,
+    private configService: ConfigService,
+  ) {}
 
   @Post('register')
   register(@Body() dto: RegisterDto) {
+    // Yeni kayıtlar varsayılan olarak kapalı. Açmak için .env'de REGISTER_ENABLED=true yapıp API'yi yeniden başlat.
+    if (this.configService.get('REGISTER_ENABLED') !== 'true') {
+      throw new ForbiddenException('Yeni kayıtlar şu an kapalı.');
+    }
     return this.authService.register(dto);
   }
 

@@ -11,6 +11,7 @@ services:
       - DB_SYNCHRONIZE=${DB_SYNCHRONIZE:-true}
       - DB_LOGGING=${DB_LOGGING:-false}
       - CORS_ORIGIN=${CORS_ORIGIN}
+      - REGISTER_ENABLED=${REGISTER_ENABLED:-false}
       - DB_HOST=db
       - DB_PORT=5432
       - DB_USERNAME=${DB_USERNAME}
