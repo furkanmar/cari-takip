@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   api:
     build:
@@ -7,10 +5,12 @@ services:
       dockerfile: Dockerfile
     container_name: cari-takip-api
     restart: unless-stopped
-    ports:
-      - '5002:3000'
+    # Dışarıya port açılmıyor: cloudflared, web ağı üzerinden http://cari-takip-api:3000 adresine ulaşır.
     environment:
-      - NODE_ENV=development
+      - NODE_ENV=production
+      - DB_SYNCHRONIZE=${DB_SYNCHRONIZE:-true}
+      - DB_LOGGING=${DB_LOGGING:-false}
+      - CORS_ORIGIN=${CORS_ORIGIN}
       - DB_HOST=db
       - DB_PORT=5432
       - DB_USERNAME=${DB_USERNAME}
@@ -29,9 +29,10 @@ services:
       minio:
         condition: service_healthy
     networks:
-      - cari-takip-network
+      - web
+      - internal
 
-  web:
+  frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
@@ -39,17 +40,14 @@ services:
         - NEXT_PUBLIC_API_URL=https://cari-api.marifoglu.trade/api
     container_name: cari-takip-web
     restart: unless-stopped
-    ports:
-      - '5600:3000'
+    # Tarayıcı API'ye doğrudan cari-api.marifoglu.trade üzerinden gider; iç ağa gerek yok.
     networks:
-      - cari-takip-network
+      - web
 
   db:
     image: postgres:16-alpine
     container_name: cari-takip-db
     restart: unless-stopped
-    ports:
-      - '5435:5432'
     environment:
       - POSTGRES_USER=${DB_USERNAME}
       - POSTGRES_PASSWORD=${DB_PASSWORD}
@@ -62,15 +60,12 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - cari-takip-network
+      - internal
 
   minio:
     image: minio/minio:latest
     container_name: cari-takip-minio
     restart: unless-stopped
-    ports:
-      - '9000:9000'
-      - '9001:9001'
     environment:
       - MINIO_ROOT_USER=${MINIO_ACCESS_KEY}
       - MINIO_ROOT_PASSWORD=${MINIO_SECRET_KEY}
@@ -83,12 +78,16 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - cari-takip-network
+      - internal
 
 volumes:
   cari-takip-db-data:
   cari-takip-minio-data:
 
 networks:
-  cari-takip-network:
-    driver: bridge
+  # Sunucudaki ortak ağ (cloudflared burada). Önceden oluşturuldu: docker network create web
+  web:
+    external: true
+  # Sadece bu projenin servisleri arasında; internete ve cloudflared'e kapalı.
+  internal:
+    internal: true
