@@ -1,6 +1,8 @@
 "use client";
 import { useEffect, useState, useMemo } from "react";
 import api from "@/lib/api";
+import { apiErrorMessage } from "@/lib/errors";
+import { todayLocal as today } from "@/lib/date";
 
 interface BalanceEntry {
   id: string;
@@ -24,7 +26,12 @@ interface Company {
 const fmt = (n: number) =>
   new Intl.NumberFormat("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
 
-const today = () => new Date().toISOString().split("T")[0];
+
+const loadData = () =>
+  Promise.all([
+    api.get<BalanceEntry[]>("/balance"),
+    api.get<Company[]>("/companies?includeArchived=true"),
+  ]).then(([bal, comp]) => ({ entries: bal.data, companies: comp.data }));
 
 const emptyForm = () => ({
   date: today(),
@@ -64,17 +71,30 @@ export default function BalancePage() {
     });
   }, [entries, filterType, filterFrom, filterTo]);
 
+  // Kaydet/sil sonrası yenilemek için
   const fetchData = async () => {
-    const [balRes, compRes] = await Promise.all([
-      api.get("/balance"),
-      api.get("/companies?includeArchived=true"),
-    ]);
-    setEntries(balRes.data);
-    setCompanies(compRes.data);
-    setLoading(false);
+    const data = await loadData();
+    setEntries(data.entries);
+    setCompanies(data.companies);
   };
 
-  useEffect(() => { fetchData(); }, []);
+  // İlk yükleme (bkz. dashboard/page.tsx'teki açıklama)
+  useEffect(() => {
+    let cancelled = false;
+    loadData()
+      .then((data) => {
+        if (cancelled) return;
+        setEntries(data.entries);
+        setCompanies(data.companies);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const openAdd = () => {
     setEditingId(null);
@@ -113,8 +133,8 @@ export default function BalancePage() {
       }
       closeForm();
       fetchData();
-    } catch (err: any) {
-      setError(err.response?.data?.message || "Hata oluştu.");
+    } catch (err) {
+      setError(apiErrorMessage(err));
     } finally {
       setSaving(false);
     }
@@ -242,7 +262,7 @@ export default function BalancePage() {
               </div>
               <div>
                 <label className="text-xs font-semibold text-slate-500 block mb-1.5">Tür</label>
-                <select value={form.type} onChange={e => setForm({ ...form, type: e.target.value as any })}
+                <select value={form.type} onChange={e => setForm({ ...form, type: e.target.value as typeof form.type })}
                   className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
                   <option value="received">📈 Bakiye +</option>
                   <option value="paid">📉 Bakiye -</option>

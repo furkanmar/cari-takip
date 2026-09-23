@@ -6,8 +6,9 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import request from 'supertest';
 import { App } from 'supertest/types';
-import { THROTTLE_DEFAULT } from '../src/app.module';
+import { THROTTLE_DEFAULT } from '../src/common/throttle.config';
 import { configureApp } from '../src/app.setup';
+import { validateEnv } from '../src/config/env.validation';
 import { CfThrottlerGuard } from '../src/common/cf-throttler.guard';
 import { AuthModule } from '../src/auth/auth.module';
 import { UsersModule } from '../src/users/users.module';
@@ -30,9 +31,18 @@ import { InMemoryRepository } from './utils/in-memory-repository';
  * AppModule'ü doğrudan kullanamıyoruz çünkü TypeOrmModule.forRootAsync açılışta
  * Postgres'e bağlanmaya çalışıyor; aynı modülleri burada DB'siz birleştiriyoruz.
  */
+// ConfigModule.forRoot(validate) modül tanımlanırken çalışıyor; env ondan önce hazır olmalı.
+process.env.JWT_SECRET = 'e2e-access-secret';
+process.env.JWT_REFRESH_SECRET = 'e2e-refresh-secret';
+delete process.env.REGISTER_ENABLED;
+
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true }),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      ignoreEnvFile: true,
+      validate: validateEnv,
+    }),
     ThrottlerModule.forRoot(THROTTLE_DEFAULT),
     AuthModule,
     UsersModule,
@@ -54,10 +64,6 @@ describe('cari-takip API (e2e)', () => {
   let files: { uploadInvoice: jest.Mock; getPresignedUrl: jest.Mock };
 
   beforeAll(async () => {
-    process.env.JWT_SECRET = 'e2e-access-secret';
-    process.env.JWT_REFRESH_SECRET = 'e2e-refresh-secret';
-    delete process.env.REGISTER_ENABLED;
-
     files = {
       uploadInvoice: jest.fn((_file: unknown, userId: string, id: string) =>
         Promise.resolve({ url: `${userId}/${id}/f.pdf`, fileName: 'f.pdf' }),
@@ -350,6 +356,38 @@ describe('cari-takip API (e2e)', () => {
         .auth(a.accessToken, { type: 'bearer' })
         .expect(200);
       expect((t.body as { invoiceUrl?: string }).invoiceUrl).toBeUndefined();
+    });
+
+    it('tarih yalnızca YYYY-AA-GG olabilir: saatli ya da var olmayan gün 400', async () => {
+      for (const date of ['2026-01-05T10:00:00Z', '2026-02-30', '05.01.2026']) {
+        await http()
+          .post('/api/transactions')
+          .auth(a.accessToken, { type: 'bearer' })
+          .send({
+            companyId,
+            date,
+            description: 'x',
+            type: 'receivable',
+            amount: 1,
+          })
+          .expect(400);
+      }
+      await http()
+        .put(`/api/balance/${entryId}`)
+        .auth(a.accessToken, { type: 'bearer' })
+        .send({ dueDate: '2026-01-05T00:00:00.000Z' })
+        .expect(400);
+    });
+
+    it('dosyasız fatura yükleme 500 değil 400 döner', async () => {
+      await http()
+        .post(`/api/transactions/${transactionId}/invoice`)
+        .auth(a.accessToken, { type: 'bearer' })
+        .expect(400);
+      await http()
+        .post(`/api/balance/${entryId}/invoice`)
+        .auth(a.accessToken, { type: 'bearer' })
+        .expect(400);
     });
 
     it('A kendi işlemine fatura yükleyebilir', async () => {

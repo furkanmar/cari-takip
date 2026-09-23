@@ -2,6 +2,8 @@
 import { useEffect, useState, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import api from "@/lib/api";
+import { apiErrorMessage } from "@/lib/errors";
+import { todayLocal as today } from "@/lib/date";
 
 interface Transaction {
   id: string;
@@ -25,7 +27,12 @@ interface Company {
 const fmt = (n: number) =>
   new Intl.NumberFormat("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
 
-const today = () => new Date().toISOString().split("T")[0];
+
+const loadData = (id: string) =>
+  Promise.all([
+    api.get<Company>(`/companies/${id}`),
+    api.get<Transaction[]>(`/transactions?companyId=${id}`),
+  ]).then(([comp, txns]) => ({ company: comp.data, transactions: txns.data }));
 
 const emptyForm = () => ({
   date: today(),
@@ -58,17 +65,30 @@ export default function CompanyPage() {
   const [filterFrom, setFilterFrom] = useState("");
   const [filterTo, setFilterTo] = useState("");
 
+  // Kaydet/sil sonrası yenilemek için
   const fetchData = async () => {
-    const [comp, txns] = await Promise.all([
-      api.get(`/companies/${id}`),
-      api.get(`/transactions?companyId=${id}`),
-    ]);
-    setCompany(comp.data);
-    setTransactions(txns.data);
-    setLoading(false);
+    const data = await loadData(id);
+    setCompany(data.company);
+    setTransactions(data.transactions);
   };
 
-  useEffect(() => { fetchData(); }, [id]);
+  // İlk yükleme ve şirket değişince (bkz. dashboard/page.tsx'teki açıklama)
+  useEffect(() => {
+    let cancelled = false;
+    loadData(id)
+      .then((data) => {
+        if (cancelled) return;
+        setCompany(data.company);
+        setTransactions(data.transactions);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
 
   const filtered = useMemo(() => {
     return transactions.filter(t => {
@@ -118,8 +138,8 @@ export default function CompanyPage() {
       }
       closeForm();
       fetchData();
-    } catch (err: any) {
-      setError(err.response?.data?.message || "Hata oluştu.");
+    } catch (err) {
+      setError(apiErrorMessage(err));
     } finally {
       setSaving(false);
     }
@@ -230,7 +250,7 @@ export default function CompanyPage() {
               </div>
               <div>
                 <label className="text-xs font-semibold text-slate-500 block mb-1.5">İşlem Türü</label>
-                <select value={form.type} onChange={e => setForm({ ...form, type: e.target.value as any })}
+                <select value={form.type} onChange={e => setForm({ ...form, type: e.target.value as typeof form.type })}
                   className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
                   <option value="receivable">📈 Borç +</option>
                   <option value="payable">📉 Borç -</option>

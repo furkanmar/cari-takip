@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import api from "@/lib/api";
+import { apiErrorMessage } from "@/lib/errors";
 
 interface Company {
   id: string;
@@ -20,6 +21,10 @@ const fmt = (n: number) =>
 
 const emptyForm = () => ({ name: "", taxNumber: "", phone: "", email: "", address: "" });
 
+// Her zaman tümünü çek: toplamlar arşivlenenleri de kapsar
+const loadCompanies = () =>
+  api.get<Company[]>("/companies?includeArchived=true").then((r) => r.data);
+
 export default function DashboardPage() {
   const router = useRouter();
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -31,14 +36,27 @@ export default function DashboardPage() {
   const [error, setError] = useState("");
   const [showArchived, setShowArchived] = useState(false);
 
+  // Kaydet/sil sonrası listeyi yenilemek için
   const fetchCompanies = async () => {
-    // Her zaman tümünü çek: toplamlar arşivlenenleri de kapsar
-    const res = await api.get(`/companies?includeArchived=true`);
-    setCompanies(res.data);
-    setLoading(false);
+    setCompanies(await loadCompanies());
   };
 
-  useEffect(() => { fetchCompanies(); }, []);
+  // İlk yükleme. setState'ler yalnızca cevap geldikten sonra çağrılır;
+  // sayfa kapanırsa (cancelled) geç gelen cevap yok sayılır.
+  useEffect(() => {
+    let cancelled = false;
+    loadCompanies()
+      .then((data) => {
+        if (!cancelled) setCompanies(data);
+      })
+      .catch(() => {}) // 401 ise api.ts zaten /login'e yönlendiriyor
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Toplamlar: arşivlenenler dahil tüm şirketler
   const totalReceivable = companies.reduce((s, c) => s + parseFloat(c.totalReceivable || "0"), 0);
@@ -76,8 +94,8 @@ export default function DashboardPage() {
       }
       closeForm();
       fetchCompanies();
-    } catch (err: any) {
-      setError(err.response?.data?.message || "Hata oluştu.");
+    } catch (err) {
+      setError(apiErrorMessage(err));
     } finally {
       setSaving(false);
     }

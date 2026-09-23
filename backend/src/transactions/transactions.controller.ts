@@ -11,6 +11,7 @@ import {
   Request,
   UseInterceptors,
   UploadedFile,
+  BadRequestException,
 } from '@nestjs/common';
 import type { AuthenticatedRequest } from '../common/authenticated-request';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -84,6 +85,12 @@ export class TransactionsController {
     @Param('id') id: string,
     @UploadedFile() file: Express.Multer.File,
   ) {
+    // Dosyasız istek önceden MinIO'da TypeError → 500 veriyordu.
+    if (!file) {
+      throw new BadRequestException(
+        'Fatura dosyası gerekli (form alanı: invoice)',
+      );
+    }
     // Önce sahiplik: başkasının kaydına dosya yüklenmesin (MinIO'da yetim dosya da kalmasın).
     await this.transactionsService.findOne(req.user.id, id);
     const { url, fileName } = await this.filesService.uploadInvoice(

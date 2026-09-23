@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuthStore } from "@/store/auth";
+import { apiErrorMessage } from "@/lib/errors";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -20,8 +21,8 @@ export default function RegisterPage() {
     try {
       await register(email, password, fullName);
       router.replace("/dashboard");
-    } catch (err: any) {
-      setError(err.response?.data?.message || "Kayıt sırasında hata oluştu.");
+    } catch (err) {
+      setError(apiErrorMessage(err, "Kayıt sırasında hata oluştu."));
     } finally {
       setLoading(false);
     }

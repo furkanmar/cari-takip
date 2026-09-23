@@ -3,19 +3,19 @@ import {
   IsEnum,
   IsNumber,
   IsPositive,
-  IsDateString,
   IsOptional,
 } from 'class-validator';
+import { IsDateOnly } from '../../common/validators';
 import { Type } from 'class-transformer';
 import { TransactionType } from '../entities/transaction.entity';
 
 export class UpdateTransactionDto {
   @IsOptional()
-  @IsDateString()
+  @IsDateOnly()
   date?: string;
 
   @IsOptional()
-  @IsDateString()
+  @IsDateOnly()
   dueDate?: string;
 
   @IsOptional()

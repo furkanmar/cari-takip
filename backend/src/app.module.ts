@@ -4,6 +4,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { CfThrottlerGuard } from './common/cf-throttler.guard';
+import { validateEnv } from './config/env.validation';
+import { THROTTLE_DEFAULT } from './common/throttle.config';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { CompaniesModule } from './companies/companies.module';
@@ -15,13 +17,9 @@ import { Company } from './companies/entities/company.entity';
 import { Transaction } from './transactions/entities/transaction.entity';
 import { BalanceEntry } from './balance/entities/balance-entry.entity';
 
-// Genel sınır: IP başına dakikada 120 istek. Auth uçları daha sıkı (bkz. AuthController).
-// e2e testleri de aynı değeri kullansın diye dışa açık.
-export const THROTTLE_DEFAULT = [{ ttl: 60_000, limit: 120 }];
-
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
     ThrottlerModule.forRoot(THROTTLE_DEFAULT),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],

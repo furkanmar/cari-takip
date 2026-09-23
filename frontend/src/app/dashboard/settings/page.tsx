@@ -1,7 +1,8 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import api from "@/lib/api";
 import { useAuthStore } from "@/store/auth";
+import { apiErrorMessage } from "@/lib/errors";
 
 export default function SettingsPage() {
   const { user, fetchMe } = useAuthStore();
@@ -15,9 +16,13 @@ export default function SettingsPage() {
   const [pwdSaving, setPwdSaving] = useState(false);
   const [pwdMsg, setPwdMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
-  useEffect(() => {
+  // Kullanıcı bilgisi (yeniden) yüklenince formu doldur. Effect yerine render
+  // sırasında yapılıyor: https://react.dev/learn/you-might-not-need-an-effect
+  const [formUser, setFormUser] = useState(user);
+  if (user !== formUser) {
+    setFormUser(user);
     if (user) setProfile({ fullName: user.fullName || "", email: user.email || "" });
-  }, [user]);
+  }
 
   const handleProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,9 +37,8 @@ export default function SettingsPage() {
       await fetchMe();
       setProfilePwd("");
       setProfileMsg({ ok: true, text: "Profil güncellendi." });
-    } catch (err: any) {
-      const msg = err.response?.data?.message;
-      setProfileMsg({ ok: false, text: Array.isArray(msg) ? msg.join(", ") : msg || "Hata oluştu." });
+    } catch (err) {
+      setProfileMsg({ ok: false, text: apiErrorMessage(err) });
     } finally {
       setProfileSaving(false);
     }
@@ -59,9 +63,8 @@ export default function SettingsPage() {
       });
       setPwdForm({ currentPassword: "", newPassword: "", confirm: "" });
       setPwdMsg({ ok: true, text: "Şifre güncellendi." });
-    } catch (err: any) {
-      const msg = err.response?.data?.message;
-      setPwdMsg({ ok: false, text: Array.isArray(msg) ? msg.join(", ") : msg || "Hata oluştu." });
+    } catch (err) {
+      setPwdMsg({ ok: false, text: apiErrorMessage(err) });
     } finally {
       setPwdSaving(false);
     }
