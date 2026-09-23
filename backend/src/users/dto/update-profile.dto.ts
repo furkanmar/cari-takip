@@ -1,5 +1,5 @@
 import { IsString, IsEmail, IsOptional, MinLength } from 'class-validator';
-import { Transform } from 'class-transformer';
+import { TrimLowercase } from '../../common/transforms';
 
 export class UpdateProfileDto {
   @IsOptional()
@@ -7,7 +7,7 @@ export class UpdateProfileDto {
   fullName?: string;
 
   @IsOptional()
-  @Transform(({ value }) => value?.trim().toLowerCase())
+  @TrimLowercase()
   @IsEmail()
   email?: string;
 

@@ -12,6 +12,7 @@ import {
   UseInterceptors,
   UploadedFile,
 } from '@nestjs/common';
+import type { AuthenticatedRequest } from '../common/authenticated-request';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { TransactionsService } from './transactions.service';
@@ -31,7 +32,7 @@ export class TransactionsController {
   @Post()
   @UseInterceptors(FileInterceptor('invoice', { storage: memoryStorage() }))
   async create(
-    @Request() req,
+    @Request() req: AuthenticatedRequest,
     @Body() dto: CreateTransactionDto,
     @UploadedFile() file?: Express.Multer.File,
   ) {
@@ -43,46 +44,63 @@ export class TransactionsController {
         req.user.id,
         transaction.id,
       );
-      await this.transactionsService.update(req.user.id, transaction.id, {});
-      // invoiceUrl ve fileName'i direkt güncelle
-      return this.transactionsService.attachInvoice(transaction.id, url, fileName);
+      return this.transactionsService.attachInvoice(
+        req.user.id,
+        transaction.id,
+        url,
+        fileName,
+      );
     }
 
     return transaction;
   }
 
   @Get()
-  findAll(@Request() req, @Query('companyId') companyId: string) {
+  findAll(
+    @Request() req: AuthenticatedRequest,
+    @Query('companyId') companyId: string,
+  ) {
     return this.transactionsService.findAll(req.user.id, companyId);
   }
 
   @Get(':id')
-  findOne(@Request() req, @Param('id') id: string) {
+  findOne(@Request() req: AuthenticatedRequest, @Param('id') id: string) {
     return this.transactionsService.findOne(req.user.id, id);
   }
 
   @Put(':id')
-  update(@Request() req, @Param('id') id: string, @Body() dto: UpdateTransactionDto) {
+  update(
+    @Request() req: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Body() dto: UpdateTransactionDto,
+  ) {
     return this.transactionsService.update(req.user.id, id, dto);
   }
 
   @Post(':id/invoice')
   @UseInterceptors(FileInterceptor('invoice', { storage: memoryStorage() }))
   async uploadInvoice(
-    @Request() req,
+    @Request() req: AuthenticatedRequest,
     @Param('id') id: string,
     @UploadedFile() file: Express.Multer.File,
   ) {
+    // Önce sahiplik: başkasının kaydına dosya yüklenmesin (MinIO'da yetim dosya da kalmasın).
+    await this.transactionsService.findOne(req.user.id, id);
     const { url, fileName } = await this.filesService.uploadInvoice(
       file,
       req.user.id,
       id,
     );
-    return this.transactionsService.attachInvoice(id, url, fileName);
+    return this.transactionsService.attachInvoice(
+      req.user.id,
+      id,
+      url,
+      fileName,
+    );
   }
 
   @Delete(':id')
-  remove(@Request() req, @Param('id') id: string) {
+  remove(@Request() req: AuthenticatedRequest, @Param('id') id: string) {
     return this.transactionsService.remove(req.user.id, id);
   }
 }

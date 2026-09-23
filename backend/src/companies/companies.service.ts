@@ -1,9 +1,6 @@
-import {
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { FindOptionsWhere, Repository } from 'typeorm';
 import { Company } from './entities/company.entity';
 import { CreateCompanyDto } from './dto/create-company.dto';
 import { UpdateCompanyDto } from './dto/update-company.dto';
@@ -27,7 +24,7 @@ export class CompaniesService {
   }
 
   async findAll(userId: string, includeArchived = false): Promise<Company[]> {
-    const where: any = { userId };
+    const where: FindOptionsWhere<Company> = { userId };
     if (!includeArchived) where.isArchived = false;
     return this.companiesRepository.find({
       where,
@@ -43,7 +40,11 @@ export class CompaniesService {
     return company;
   }
 
-  async update(userId: string, id: string, dto: UpdateCompanyDto): Promise<Company> {
+  async update(
+    userId: string,
+    id: string,
+    dto: UpdateCompanyDto,
+  ): Promise<Company> {
     const company = await this.findOne(userId, id);
     Object.assign(company, dto);
     if (dto.name) company.name = toUpperName(dto.name);
@@ -71,11 +72,23 @@ export class CompaniesService {
     const result = await this.companiesRepository
       .createQueryBuilder('company')
       .leftJoin('company.transactions', 'transaction')
-      .select('SUM(CASE WHEN transaction.type = :receivable THEN transaction.amount ELSE 0 END)', 'totalReceivable')
-      .addSelect('SUM(CASE WHEN transaction.type = :payable THEN transaction.amount ELSE 0 END)', 'totalPayable')
-      .where('company.id = :companyId AND company.userId = :userId', { companyId, userId })
+      .select(
+        'SUM(CASE WHEN transaction.type = :receivable THEN transaction.amount ELSE 0 END)',
+        'totalReceivable',
+      )
+      .addSelect(
+        'SUM(CASE WHEN transaction.type = :payable THEN transaction.amount ELSE 0 END)',
+        'totalPayable',
+      )
+      .where('company.id = :companyId AND company.userId = :userId', {
+        companyId,
+        userId,
+      })
       .setParameters({ receivable: 'receivable', payable: 'payable' })
-      .getRawOne();
+      .getRawOne<{
+        totalReceivable: string | null;
+        totalPayable: string | null;
+      }>();
 
     await this.companiesRepository.update(companyId, {
       totalReceivable: parseFloat(result?.totalReceivable || '0'),

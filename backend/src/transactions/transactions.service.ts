@@ -1,13 +1,11 @@
-import {
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Transaction, TransactionType } from './entities/transaction.entity';
 import { CompaniesService } from '../companies/companies.service';
 import { BalanceService } from '../balance/balance.service';
 import { BalanceEntryType } from '../balance/entities/balance-entry.entity';
+import { UpdateBalanceEntryDto } from '../balance/dto/update-balance-entry.dto';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { UpdateTransactionDto } from './dto/update-transaction.dto';
 
@@ -20,7 +18,10 @@ export class TransactionsService {
     private balanceService: BalanceService,
   ) {}
 
-  async create(userId: string, dto: CreateTransactionDto): Promise<Transaction> {
+  async create(
+    userId: string,
+    dto: CreateTransactionDto,
+  ): Promise<Transaction> {
     await this.companiesService.findOne(userId, dto.companyId);
 
     const transaction = this.transactionsRepository.create({ ...dto, userId });
@@ -31,7 +32,10 @@ export class TransactionsService {
 
     // verilen ise bakiyede otomatik "Bakiye -" kaydı oluştur
     if (dto.type === TransactionType.PAYABLE) {
-      const company = await this.companiesService.findOne(userId, dto.companyId);
+      const company = await this.companiesService.findOne(
+        userId,
+        dto.companyId,
+      );
       const balanceEntry = await this.balanceService.create(userId, {
         date: dto.date,
         dueDate: dto.dueDate,
@@ -44,7 +48,9 @@ export class TransactionsService {
       });
     }
 
-    return this.transactionsRepository.findOne({ where: { id: transaction.id } }) as Promise<Transaction>;
+    return this.transactionsRepository.findOne({
+      where: { id: transaction.id },
+    }) as Promise<Transaction>;
   }
 
   async findAll(userId: string, companyId: string): Promise<Transaction[]> {
@@ -63,7 +69,11 @@ export class TransactionsService {
     return transaction;
   }
 
-  async update(userId: string, id: string, dto: UpdateTransactionDto): Promise<Transaction> {
+  async update(
+    userId: string,
+    id: string,
+    dto: UpdateTransactionDto,
+  ): Promise<Transaction> {
     const transaction = await this.findOne(userId, id);
     const oldDate = transaction.date;
     const oldType = transaction.type;
@@ -72,21 +82,39 @@ export class TransactionsService {
     await this.transactionsRepository.save(transaction);
 
     const recalcFrom = dto.date && dto.date < oldDate ? dto.date : oldDate;
-    await this.recalculateRunningBalances(userId, transaction.companyId, recalcFrom);
+    await this.recalculateRunningBalances(
+      userId,
+      transaction.companyId,
+      recalcFrom,
+    );
     await this.companiesService.updateBalances(transaction.companyId, userId);
 
     // Bağlı bakiye kaydını yönet
     const newType = transaction.type;
 
-    if (oldType === TransactionType.PAYABLE && newType === TransactionType.RECEIVABLE) {
+    if (
+      oldType === TransactionType.PAYABLE &&
+      newType === TransactionType.RECEIVABLE
+    ) {
       // Tür değişti PAYABLE → RECEIVABLE: bakiye kaydını sil
       if (transaction.linkedBalanceEntryId) {
-        await this.balanceService.removeById(userId, transaction.linkedBalanceEntryId);
-        await this.transactionsRepository.update(id, { linkedBalanceEntryId: null });
+        await this.balanceService.removeById(
+          userId,
+          transaction.linkedBalanceEntryId,
+        );
+        await this.transactionsRepository.update(id, {
+          linkedBalanceEntryId: null,
+        });
       }
-    } else if (oldType === TransactionType.RECEIVABLE && newType === TransactionType.PAYABLE) {
+    } else if (
+      oldType === TransactionType.RECEIVABLE &&
+      newType === TransactionType.PAYABLE
+    ) {
       // Tür değişti RECEIVABLE → PAYABLE: yeni bakiye kaydı oluştur
-      const company = await this.companiesService.findOne(userId, transaction.companyId);
+      const company = await this.companiesService.findOne(
+        userId,
+        transaction.companyId,
+      );
       const balanceEntry = await this.balanceService.create(userId, {
         date: transaction.date,
         dueDate: transaction.dueDate || undefined,
@@ -94,15 +122,24 @@ export class TransactionsService {
         type: BalanceEntryType.PAID,
         amount: Number(transaction.amount),
       });
-      await this.transactionsRepository.update(id, { linkedBalanceEntryId: balanceEntry.id });
-    } else if (newType === TransactionType.PAYABLE && transaction.linkedBalanceEntryId) {
+      await this.transactionsRepository.update(id, {
+        linkedBalanceEntryId: balanceEntry.id,
+      });
+    } else if (
+      newType === TransactionType.PAYABLE &&
+      transaction.linkedBalanceEntryId
+    ) {
       // Hâlâ PAYABLE, tutar/tarih değişmiş olabilir → bakiye kaydını güncelle
-      const updatePayload: any = {};
+      const updatePayload: Partial<UpdateBalanceEntryDto> = {};
       if (dto.amount !== undefined) updatePayload.amount = dto.amount;
       if (dto.date !== undefined) updatePayload.date = dto.date;
       if ('dueDate' in dto) updatePayload.dueDate = dto.dueDate;
       if (Object.keys(updatePayload).length > 0) {
-        await this.balanceService.updateById(userId, transaction.linkedBalanceEntryId, updatePayload);
+        await this.balanceService.updateById(
+          userId,
+          transaction.linkedBalanceEntryId,
+          updatePayload,
+        );
       }
     }
 
@@ -123,9 +160,18 @@ export class TransactionsService {
     }
   }
 
-  async attachInvoice(id: string, invoiceUrl: string, invoiceFileName: string): Promise<Transaction> {
-    await this.transactionsRepository.update(id, { invoiceUrl, invoiceFileName });
-    return this.transactionsRepository.findOne({ where: { id } }) as Promise<Transaction>;
+  async attachInvoice(
+    userId: string,
+    id: string,
+    invoiceUrl: string,
+    invoiceFileName: string,
+  ): Promise<Transaction> {
+    await this.findOne(userId, id); // sahiplik doğrula
+    await this.transactionsRepository.update(
+      { id, userId },
+      { invoiceUrl, invoiceFileName },
+    );
+    return this.findOne(userId, id);
   }
 
   private async recalculateRunningBalances(
@@ -135,11 +181,14 @@ export class TransactionsService {
   ): Promise<void> {
     const previousTransaction = await this.transactionsRepository
       .createQueryBuilder('t')
-      .where('t.userId = :userId AND t.companyId = :companyId AND t.date < :fromDate', {
-        userId,
-        companyId,
-        fromDate,
-      })
+      .where(
+        't.userId = :userId AND t.companyId = :companyId AND t.date < :fromDate',
+        {
+          userId,
+          companyId,
+          fromDate,
+        },
+      )
       .orderBy('t.date', 'DESC')
       .addOrderBy('t.createdAt', 'DESC')
       .getOne();

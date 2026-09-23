@@ -1,7 +1,5 @@
 import { IsString, IsOptional, IsEmail, MinLength } from 'class-validator';
-import { Transform } from 'class-transformer';
-
-const emptyToUndefined = () => Transform(({ value }) => value === '' ? undefined : value);
+import { EmptyToUndefined } from '../../common/transforms';
 
 export class CreateCompanyDto {
   @IsString()
@@ -10,21 +8,21 @@ export class CreateCompanyDto {
 
   @IsOptional()
   @IsString()
-  @emptyToUndefined()
+  @EmptyToUndefined()
   taxNumber?: string;
 
   @IsOptional()
   @IsString()
-  @emptyToUndefined()
+  @EmptyToUndefined()
   phone?: string;
 
   @IsOptional()
   @IsEmail()
-  @emptyToUndefined()
+  @EmptyToUndefined()
   email?: string;
 
   @IsOptional()
   @IsString()
-  @emptyToUndefined()
+  @EmptyToUndefined()
   address?: string;
 }

@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  ConflictException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
@@ -26,7 +30,9 @@ export class UsersService {
   }
 
   async updateRefreshToken(userId: string, token: string | null) {
-    await this.usersRepository.update(userId, { refreshToken: token as string });
+    await this.usersRepository.update(userId, {
+      refreshToken: token,
+    });
   }
 
   async getProfile(userId: string) {
@@ -43,7 +49,9 @@ export class UsersService {
     // E-posta veya şifre değişiyorsa mevcut şifre zorunlu
     if ((dto.email && dto.email !== user.email) || dto.newPassword) {
       if (!dto.currentPassword) {
-        throw new BadRequestException('Bu değişiklik için mevcut şifrenizi girmelisiniz');
+        throw new BadRequestException(
+          'Bu değişiklik için mevcut şifrenizi girmelisiniz',
+        );
       }
       const valid = await bcrypt.compare(dto.currentPassword, user.password);
       if (!valid) throw new BadRequestException('Mevcut şifre hatalı');

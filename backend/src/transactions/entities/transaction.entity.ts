@@ -12,7 +12,7 @@ import { Company } from '../../companies/entities/company.entity';
 
 export enum TransactionType {
   RECEIVABLE = 'receivable', // alacak (bize borçlu)
-  PAYABLE = 'payable',       // verecek (biz borçluyuz)
+  PAYABLE = 'payable', // verecek (biz borçluyuz)
 }
 
 @Entity('transactions')

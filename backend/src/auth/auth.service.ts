@@ -6,9 +6,31 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcryptjs';
+import { createHash, randomUUID, timingSafeEqual } from 'crypto';
 import { UsersService } from '../users/users.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+
+interface JwtPayload {
+  sub: string;
+  email: string;
+}
+
+/**
+ * Refresh token'lar bcrypt ile DEĞİL, SHA-256 ile saklanır: bcrypt girdinin
+ * yalnızca ilk 72 byte'ına bakar ve bir JWT'nin ilk 72 karakteri (header +
+ * `{"sub":"<userId>"`) aynı kullanıcı için hep aynıdır. Token zaten yüksek
+ * entropili olduğu için yavaş/tuzlu hash'e gerek yok.
+ */
+export function hashRefreshToken(token: string): string {
+  return createHash('sha256').update(token).digest('hex');
+}
+
+function safeEqual(a: string, b: string): boolean {
+  const ba = Buffer.from(a);
+  const bb = Buffer.from(b);
+  return ba.length === bb.length && timingSafeEqual(ba, bb);
+}
 
 @Injectable()
 export class AuthService {
@@ -42,12 +64,23 @@ export class AuthService {
   }
 
   async refresh(userId: string, refreshToken: string) {
-    const user = await this.usersService.findById(userId);
-    if (!user || !user.refreshToken)
+    // 1) İmza ve süre: token gerçekten bizim refresh secret'ımızla imzalanmış mı?
+    let payload: JwtPayload;
+    try {
+      payload = await this.jwtService.verifyAsync<JwtPayload>(refreshToken, {
+        secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
+      });
+    } catch {
       throw new UnauthorizedException();
+    }
+    // 2) Token, istekteki kullanıcıya mı ait?
+    if (payload.sub !== userId) throw new UnauthorizedException();
 
-    const valid = await bcrypt.compare(refreshToken, user.refreshToken);
-    if (!valid) throw new UnauthorizedException();
+    // 3) Rotasyon: yalnızca en son verilen refresh token geçerli.
+    const user = await this.usersService.findById(userId);
+    if (!user || !user.refreshToken) throw new UnauthorizedException();
+    if (!safeEqual(hashRefreshToken(refreshToken), user.refreshToken))
+      throw new UnauthorizedException();
 
     return this.generateTokens(user.id, user.email);
   }
@@ -67,10 +100,14 @@ export class AuthService {
     const refreshToken = this.jwtService.sign(payload, {
       secret: this.configService.get('JWT_REFRESH_SECRET'),
       expiresIn: this.configService.get('JWT_REFRESH_EXPIRES_IN') || '7d',
+      // Aynı saniyede üretilen iki token'ın birebir aynı olmaması için.
+      jwtid: randomUUID(),
     });
 
-    const hashedRefresh = await bcrypt.hash(refreshToken, 10);
-    await this.usersService.updateRefreshToken(userId, hashedRefresh);
+    await this.usersService.updateRefreshToken(
+      userId,
+      hashRefreshToken(refreshToken),
+    );
 
     return { accessToken, refreshToken };
   }

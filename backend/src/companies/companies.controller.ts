@@ -10,6 +10,7 @@ import {
   UseGuards,
   Request,
 } from '@nestjs/common';
+import type { AuthenticatedRequest } from '../common/authenticated-request';
 import { CompaniesService } from './companies.service';
 import { CreateCompanyDto } from './dto/create-company.dto';
 import { UpdateCompanyDto } from './dto/update-company.dto';
@@ -21,37 +22,47 @@ export class CompaniesController {
   constructor(private companiesService: CompaniesService) {}
 
   @Post()
-  create(@Request() req, @Body() dto: CreateCompanyDto) {
+  create(@Request() req: AuthenticatedRequest, @Body() dto: CreateCompanyDto) {
     return this.companiesService.create(req.user.id, dto);
   }
 
   @Get()
-  findAll(@Request() req, @Query('includeArchived') includeArchived?: string) {
-    return this.companiesService.findAll(req.user.id, includeArchived === 'true');
+  findAll(
+    @Request() req: AuthenticatedRequest,
+    @Query('includeArchived') includeArchived?: string,
+  ) {
+    return this.companiesService.findAll(
+      req.user.id,
+      includeArchived === 'true',
+    );
   }
 
   @Get(':id')
-  findOne(@Request() req, @Param('id') id: string) {
+  findOne(@Request() req: AuthenticatedRequest, @Param('id') id: string) {
     return this.companiesService.findOne(req.user.id, id);
   }
 
   @Put(':id')
-  update(@Request() req, @Param('id') id: string, @Body() dto: UpdateCompanyDto) {
+  update(
+    @Request() req: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Body() dto: UpdateCompanyDto,
+  ) {
     return this.companiesService.update(req.user.id, id, dto);
   }
 
   @Put(':id/archive')
-  archive(@Request() req, @Param('id') id: string) {
+  archive(@Request() req: AuthenticatedRequest, @Param('id') id: string) {
     return this.companiesService.archive(req.user.id, id);
   }
 
   @Put(':id/unarchive')
-  unarchive(@Request() req, @Param('id') id: string) {
+  unarchive(@Request() req: AuthenticatedRequest, @Param('id') id: string) {
     return this.companiesService.unarchive(req.user.id, id);
   }
 
   @Delete(':id')
-  remove(@Request() req, @Param('id') id: string) {
+  remove(@Request() req: AuthenticatedRequest, @Param('id') id: string) {
     return this.companiesService.remove(req.user.id, id);
   }
 }

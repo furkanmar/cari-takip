@@ -48,12 +48,7 @@ export class FilesService implements OnModuleInit {
       { 'Content-Type': file.mimetype },
     );
 
-    // Presigned URL (7 gün geçerli) - dosya erişimi için
-    const url = await this.minioClient.presignedGetObject(
-      this.bucket,
-      fileName,
-      7 * 24 * 60 * 60,
-    );
+    // DB'ye nesne yolu yazılır; erişim için /files/presigned ile kısa ömürlü URL alınır.
 
     return { url: fileName, fileName: file.originalname };
   }

@@ -11,7 +11,7 @@ import { User } from '../../users/entities/user.entity';
 
 export enum BalanceEntryType {
   RECEIVED = 'received', // alınan (gelen para)
-  PAID = 'paid',         // verilen (giden para)
+  PAID = 'paid', // verilen (giden para)
 }
 
 @Entity('balance_entries')

@@ -6,10 +6,7 @@ import { BalanceEntry } from './entities/balance-entry.entity';
 import { FilesModule } from '../files/files.module';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([BalanceEntry]),
-    FilesModule,
-  ],
+  imports: [TypeOrmModule.forFeature([BalanceEntry]), FilesModule],
   providers: [BalanceService],
   controllers: [BalanceController],
   exports: [BalanceService],

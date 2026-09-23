@@ -7,6 +7,7 @@ import {
   HttpCode,
   ForbiddenException,
 } from '@nestjs/common';
+import type { AuthenticatedRequest } from '../common/authenticated-request';
 import { ConfigService } from '@nestjs/config';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
@@ -49,7 +50,7 @@ export class AuthController {
   @Post('logout')
   @UseGuards(JwtAuthGuard)
   @HttpCode(200)
-  logout(@Request() req) {
+  logout(@Request() req: AuthenticatedRequest) {
     return this.authService.logout(req.user.id);
   }
 }

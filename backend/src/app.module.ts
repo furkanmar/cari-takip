@@ -15,11 +15,14 @@ import { Company } from './companies/entities/company.entity';
 import { Transaction } from './transactions/entities/transaction.entity';
 import { BalanceEntry } from './balance/entities/balance-entry.entity';
 
+// Genel sınır: IP başına dakikada 120 istek. Auth uçları daha sıkı (bkz. AuthController).
+// e2e testleri de aynı değeri kullansın diye dışa açık.
+export const THROTTLE_DEFAULT = [{ ttl: 60_000, limit: 120 }];
+
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
-    // Genel sınır: IP başına dakikada 120 istek. Auth uçları daha sıkı (bkz. AuthController).
-    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 120 }]),
+    ThrottlerModule.forRoot(THROTTLE_DEFAULT),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({

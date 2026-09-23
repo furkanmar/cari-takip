@@ -1,4 +1,11 @@
-import { IsString, IsEnum, IsNumber, IsPositive, IsDateString, IsOptional } from 'class-validator';
+import {
+  IsString,
+  IsEnum,
+  IsNumber,
+  IsPositive,
+  IsDateString,
+  IsOptional,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { BalanceEntryType } from '../entities/balance-entry.entity';
 

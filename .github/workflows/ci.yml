@@ -29,11 +29,12 @@ jobs:
           cache: npm
           cache-dependency-path: backend/package-lock.json
       - run: npm ci
-      - name: Lint (non-blocking for now)
-        run: npx eslint "{src,test}/**/*.ts"
-        continue-on-error: true
+      - name: Lint
+        run: npx eslint "{src,test}/**/*.ts" --max-warnings 0
       - name: Unit tests
         run: npm test -- --ci
+      - name: E2E tests (HTTP katmanı, DB'siz)
+        run: npm run test:e2e -- --ci
       - name: Build
         run: npm run build
 

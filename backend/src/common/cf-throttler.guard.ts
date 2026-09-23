@@ -9,8 +9,12 @@ import { ThrottlerGuard } from '@nestjs/throttler';
  */
 @Injectable()
 export class CfThrottlerGuard extends ThrottlerGuard {
-  protected async getTracker(req: Record<string, any>): Promise<string> {
-    const cfIp = req.headers?.['cf-connecting-ip'];
-    return (Array.isArray(cfIp) ? cfIp[0] : cfIp) ?? req.ip;
+  protected getTracker(req: Record<string, any>): Promise<string> {
+    const headers = req.headers as
+      | Record<string, string | string[] | undefined>
+      | undefined;
+    const cfIp = headers?.['cf-connecting-ip'];
+    const ip = Array.isArray(cfIp) ? cfIp[0] : cfIp;
+    return Promise.resolve(ip ?? (req.ip as string));
   }
 }
