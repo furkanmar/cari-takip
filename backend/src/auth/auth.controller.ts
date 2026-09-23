@@ -8,6 +8,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
@@ -20,6 +21,8 @@ export class AuthController {
     private configService: ConfigService,
   ) {}
 
+  // Şifre deneme saldırılarına karşı: IP başına dakikada 5 deneme.
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('register')
   register(@Body() dto: RegisterDto) {
     // Yeni kayıtlar varsayılan olarak kapalı. Açmak için .env'de REGISTER_ENABLED=true yapıp API'yi yeniden başlat.
@@ -29,12 +32,14 @@ export class AuthController {
     return this.authService.register(dto);
   }
 
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('login')
   @HttpCode(200)
   login(@Body() dto: LoginDto) {
     return this.authService.login(dto);
   }
 
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @Post('refresh')
   @HttpCode(200)
   refresh(@Body() body: { userId: string; refreshToken: string }) {

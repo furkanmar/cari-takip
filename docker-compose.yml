@@ -1,5 +1,9 @@
 services:
   api:
+    # Hazır imaj GitHub Actions tarafından üretilir (bkz. .github/workflows/ci.yml).
+    # Pi'de: docker compose pull && docker compose up -d
+    # Yerelde kaynaktan derlemek için: docker compose up -d --build
+    image: ghcr.io/furkanmar/cari-takip-backend:${IMAGE_TAG:-latest}
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -34,6 +38,7 @@ services:
       - internal
 
   frontend:
+    image: ghcr.io/furkanmar/cari-takip-frontend:${IMAGE_TAG:-latest}
     build:
       context: ./frontend
       dockerfile: Dockerfile

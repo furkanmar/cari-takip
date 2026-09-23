@@ -1,6 +1,9 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { CfThrottlerGuard } from './common/cf-throttler.guard';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { CompaniesModule } from './companies/companies.module';
@@ -15,6 +18,8 @@ import { BalanceEntry } from './balance/entities/balance-entry.entity';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    // Genel sınır: IP başına dakikada 120 istek. Auth uçları daha sıkı (bkz. AuthController).
+    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 120 }]),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
@@ -37,5 +42,6 @@ import { BalanceEntry } from './balance/entities/balance-entry.entity';
     BalanceModule,
     FilesModule,
   ],
+  providers: [{ provide: APP_GUARD, useClass: CfThrottlerGuard }],
 })
 export class AppModule {}
