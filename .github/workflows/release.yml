@@ -1,0 +1,125 @@
+name: Release
+
+# `git push origin vX.Y.Z` ile tetiklenir:
+#   1. Tag, backend/frontend package.json ve mobile/pubspec.yaml sürümüyle aynı mı?
+#   2. CI'ın bu commit için test edip GHCR'a gönderdiği imajlara :vX.Y.Z etiketi ekler
+#      (yeniden build etmez → yayınlanan imaj, testlerden geçen imajın ta kendisi).
+#   3. İmzalı release APK'yı build eder, GitHub Release'e ekler (release yoksa oluşturur).
+on:
+  push:
+    tags: ['v*.*.*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Yeniden çalıştırılacak tag (ör. v1.0.0)'
+        required: true
+
+permissions:
+  contents: write
+  packages: write
+
+env:
+  TAG: ${{ inputs.tag || github.ref_name }}
+
+jobs:
+  verify:
+    name: Sürüm kontrolü
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      sha: ${{ steps.v.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+      - id: v
+        run: |
+          VERSION="${TAG#v}"
+          BACKEND=$(node -p "require('./backend/package.json').version")
+          FRONTEND=$(node -p "require('./frontend/package.json').version")
+          MOBILE=$(grep -E '^version:' mobile/pubspec.yaml | sed -E 's/version: *([^+ ]+).*/\1/' | tr -d '\r')
+          echo "tag=$VERSION backend=$BACKEND frontend=$FRONTEND mobile=$MOBILE"
+          if [ "$BACKEND" != "$VERSION" ] || [ "$FRONTEND" != "$VERSION" ] || [ "$MOBILE" != "$VERSION" ]; then
+            echo "::error::Tag ($VERSION) ile package.json/pubspec.yaml sürümleri uyuşmuyor. Önce sürümleri güncelleyip commit'le."
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+  docker:
+    name: İmajlara sürüm etiketi
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: CI imajlarını bekle ve etiketle
+        env:
+          SHA: ${{ needs.verify.outputs.sha }}
+          VERSION: ${{ needs.verify.outputs.version }}
+        run: |
+          for svc in backend frontend; do
+            IMG="ghcr.io/${{ github.repository_owner }}/cari-takip-$svc"
+            # Tag, main'e push'tan hemen sonra atılmışsa CI henüz bitmemiş olabilir: 25 dk'ya kadar bekle.
+            for i in $(seq 1 50); do
+              docker buildx imagetools inspect "$IMG:$SHA" >/dev/null 2>&1 && break
+              [ "$i" = 50 ] && { echo "::error::$IMG:$SHA bulunamadı. Bu commit için CI yeşil mi?"; exit 1; }
+              echo "$IMG:$SHA bekleniyor ($i/50)..."; sleep 30
+            done
+            docker buildx imagetools create -t "$IMG:v$VERSION" "$IMG:$SHA"
+            echo "✓ $IMG:v$VERSION → $SHA"
+          done
+
+  apk:
+    name: Android APK
+    needs: verify
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::error::ANDROID_KEYSTORE_BASE64 secret'ı yok. Debug imzalı APK, telefondaki uygulamanın üzerine güncelleme olarak kurulamaz."
+            exit 1
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > android/upload-keystore.jks
+          cat > android/key.properties <<PROPS
+          storeFile=upload-keystore.jks
+          storePassword=$KEYSTORE_PASSWORD
+          keyAlias=$KEY_ALIAS
+          keyPassword=$KEY_PASSWORD
+          PROPS
+      - run: flutter pub get
+      - name: Build
+        # versionCode her release'te artmalı (Android güncellemeyi buna göre kabul eder).
+        run: flutter build apk --release --build-name=${{ needs.verify.outputs.version }} --build-number=${{ github.run_number }}
+      - name: GitHub Release'e ekle
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          APK="cari-takip-$TAG.apk"
+          cp build/app/outputs/flutter-apk/app-release.apk "$APK"
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --verify-tag --generate-notes
+          gh release upload "$TAG" "$APK" --clobber
