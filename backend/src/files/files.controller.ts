@@ -1,4 +1,11 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  ForbiddenException,
+  Get,
+  Query,
+  Request,
+  UseGuards,
+} from '@nestjs/common';
 import { FilesService } from './files.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
@@ -7,9 +14,18 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 export class FilesController {
   constructor(private filesService: FilesService) {}
 
-  // Fatura dosyasına geçici erişim URL'i döner
+  // Fatura dosyasına geçici erişim URL'i döner.
+  // Dosyalar "<userId>/<transactionId>/<uuid>.<ext>" yolunda saklanır;
+  // kullanıcı sadece kendi klasöründeki dosyalara erişebilir.
   @Get('presigned')
-  getPresignedUrl(@Query('path') path: string) {
+  getPresignedUrl(@Query('path') path: string, @Request() req) {
+    if (
+      !path ||
+      path.includes('..') ||
+      !path.startsWith(`${req.user.id}/`)
+    ) {
+      throw new ForbiddenException('Bu dosyaya erişim yetkiniz yok');
+    }
     return this.filesService.getPresignedUrl(path).then((url) => ({ url }));
   }
 }
